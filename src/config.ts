@@ -34,8 +34,8 @@ function loadApiKey(): string | null {
 
 export function getConfig(): Config {
   return {
-    apiUrl: process.env.MTROPRO_API_URL || "http://localhost:3000",
-    adminUrl: process.env.MTROPRO_ADMIN_URL || "http://localhost:8080",
+    apiUrl: process.env.MTROPRO_API_URL || "https://core.mtro.app",
+    adminUrl: process.env.MTROPRO_ADMIN_URL || "https://mtropro.app",
     apiKey: loadApiKey(),
   };
 }

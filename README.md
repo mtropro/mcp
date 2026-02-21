@@ -43,8 +43,8 @@ Two options:
 | Variable | Default | Description |
 |---|---|---|
 | `MTROPRO_API_KEY` | - | API key (skips browser auth) |
-| `MTROPRO_API_URL` | `http://localhost:3000` | Core API base URL |
-| `MTROPRO_ADMIN_URL` | `http://localhost:8080` | Admin panel URL (used for browser auth) |
+| `MTROPRO_API_URL` | `https://core.mtro.app` | Core API base URL |
+| `MTROPRO_ADMIN_URL` | `https://mtropro.app` | Admin panel URL (used for browser auth) |
 
 ## Available tools
 
