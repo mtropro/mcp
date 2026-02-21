@@ -1,0 +1,33 @@
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { ApiClient } from "../api-client.js";
+import { registerUserTools } from "./users.js";
+import { registerPropertyTools } from "./properties.js";
+import { registerBookingTools } from "./bookings.js";
+import { registerGuestTools } from "./guests.js";
+import { registerVendorTools } from "./vendors.js";
+import { registerTaskTools } from "./tasks.js";
+import { registerTemplateTools } from "./templates.js";
+import { registerLeadTools } from "./leads.js";
+import { registerPipelineStageTools } from "./pipeline-stages.js";
+import { registerReportTools } from "./reports.js";
+import { registerNoteTools } from "./notes.js";
+import { registerReminderTools } from "./reminders.js";
+import { registerNotificationTools } from "./notifications.js";
+import { registerEntityTools } from "./entities.js";
+
+export function registerAllTools(server: McpServer, client: ApiClient) {
+  registerUserTools(server, client);
+  registerPropertyTools(server, client);
+  registerBookingTools(server, client);
+  registerGuestTools(server, client);
+  registerVendorTools(server, client);
+  registerTaskTools(server, client);
+  registerTemplateTools(server, client);
+  registerLeadTools(server, client);
+  registerPipelineStageTools(server, client);
+  registerReportTools(server, client);
+  registerNoteTools(server, client);
+  registerReminderTools(server, client);
+  registerNotificationTools(server, client);
+  registerEntityTools(server, client);
+}
