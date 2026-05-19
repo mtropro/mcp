@@ -1,3 +1,13 @@
 node_modules/
 dist/
 .auth.json
+
+# Local agent/tool state and secrets
+.env
+.env.*
+!.env.example
+.claude/
+.codex/
+.agents/
+.grog/
+*.local.json
