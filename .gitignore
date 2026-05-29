@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .auth.json
+.DS_Store
 
 # Local agent/tool state and secrets
 .env
