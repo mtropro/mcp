@@ -141,4 +141,83 @@ export function registerPropertyTools(server: McpServer, client: ApiClient) {
       }
     }
   );
+
+  server.tool(
+    "properties_invite_owners",
+    "Invite property owners to a property. This sends external communication and should require owner confirmation when used by an agent.",
+    {
+      propertyId: z.string().describe("The property ID"),
+      payload: z.record(z.any()).describe("Invitation body."),
+    },
+    async ({ propertyId, payload }) => {
+      try {
+        const data = await client.post(`/properties/invite-owners/${propertyId}`, payload);
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: String(error instanceof Error ? error.message : error) }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "properties_get_synced_calendar_events",
+    "Get imported/synced calendar events for a property.",
+    { propertyId: z.string().describe("The property ID") },
+    async ({ propertyId }) => {
+      try {
+        const data = await client.get(`/properties/get/${propertyId}/synced-calendar-events`);
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: String(error instanceof Error ? error.message : error) }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "properties_calculate_rate",
+    "Calculate a public quote/rate for a property and date range.",
+    { payload: z.record(z.any()).describe("Core /properties/public/calculate-rate request body.") },
+    async ({ payload }) => {
+      try {
+        const data = await client.post("/properties/public/calculate-rate", payload);
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: String(error instanceof Error ? error.message : error) }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "properties_send_invitation",
+    "Send a property invitation. This sends external communication and should require owner confirmation when used by an agent.",
+    { payload: z.record(z.any()).describe("Core /properties/send-invitation request body.") },
+    async ({ payload }) => {
+      try {
+        const data = await client.post("/properties/send-invitation", payload);
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: String(error instanceof Error ? error.message : error) }],
+          isError: true,
+        };
+      }
+    }
+  );
 }

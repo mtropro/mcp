@@ -14,6 +14,16 @@ import { registerNoteTools } from "./notes.js";
 import { registerReminderTools } from "./reminders.js";
 import { registerNotificationTools } from "./notifications.js";
 import { registerEntityTools } from "./entities.js";
+import { registerPaymentTools, registerStripeAccountTools } from "./payments.js";
+import { registerInventoryTools } from "./inventory.js";
+import { registerConversationTools } from "./conversations.js";
+import { registerMessageTemplateTools } from "./message-templates.js";
+import { registerSubscriptionTools } from "./subscriptions.js";
+import { registerPollTools } from "./polls.js";
+import { registerReportWidgetTools } from "./report-widgets.js";
+import { registerAdminUtilityTools } from "./admin.js";
+import { registerCampaignTools } from "./campaigns.js";
+import { registerImportJobTools } from "./import-jobs.js";
 
 export function registerAllTools(server: McpServer, client: ApiClient) {
   registerUserTools(server, client);
@@ -30,4 +40,15 @@ export function registerAllTools(server: McpServer, client: ApiClient) {
   registerReminderTools(server, client);
   registerNotificationTools(server, client);
   registerEntityTools(server, client);
+  registerPaymentTools(server, client);
+  registerStripeAccountTools(server, client);
+  registerInventoryTools(server, client);
+  registerConversationTools(server, client);
+  registerMessageTemplateTools(server, client);
+  registerSubscriptionTools(server, client);
+  registerPollTools(server, client);
+  registerReportWidgetTools(server, client);
+  registerAdminUtilityTools(server, client);
+  registerCampaignTools(server, client);
+  registerImportJobTools(server, client);
 }

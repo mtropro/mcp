@@ -176,15 +176,167 @@ export function registerBookingTools(server: McpServer, client: ApiClient) {
   );
 
   server.tool(
-    "bookings_invite_guests",
-    "Invite additional guests to an existing booking.",
+    "bookings_reverse_to_lead",
+    "Reverse a booking back to a lead. This changes workflow state and should require owner confirmation when used by an agent.",
     {
       bookingId: z.string().describe("The booking ID"),
-      guestIds: z.array(z.string()).describe("Array of guest IDs to invite"),
     },
-    async ({ bookingId, guestIds }) => {
+    async ({ bookingId }) => {
       try {
-        const data = await client.post(`/bookings/invite-guests/${bookingId}`, { guestIds });
+        const data = await client.post(`/bookings/reverse-to-lead/${bookingId}`);
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: String(error instanceof Error ? error.message : error) }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "bookings_sign",
+    "Sign a booking/lease as owner. This is legally significant and should require owner confirmation when used by an agent.",
+    {
+      bookingId: z.string().describe("The booking ID"),
+      payload: z.record(z.any()).optional().describe("Optional signature payload."),
+    },
+    async ({ bookingId, payload }) => {
+      try {
+        const data = await client.post(`/bookings/sign/${bookingId}`, payload);
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: String(error instanceof Error ? error.message : error) }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "bookings_set_primary_guest",
+    "Set the primary guest for a booking. This writes account data and should require owner confirmation when used by an agent.",
+    {
+      bookingId: z.string().describe("The booking ID"),
+      guestId: z.string().describe("The guest ID to set as primary."),
+    },
+    async ({ bookingId, guestId }) => {
+      try {
+        const data = await client.post(`/bookings/set-primary-guest/${bookingId}`, { guestId });
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: String(error instanceof Error ? error.message : error) }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "bookings_request_background_check",
+    "Request a background check for a booking. This can trigger external workflow and should require owner confirmation when used by an agent.",
+    {
+      bookingId: z.string().describe("The booking ID"),
+      payload: z.record(z.any()).optional().describe("Optional background check request body."),
+    },
+    async ({ bookingId, payload }) => {
+      try {
+        const data = await client.post(`/bookings/request-background-check/${bookingId}`, payload);
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: String(error instanceof Error ? error.message : error) }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "bookings_set_background_check_approval",
+    "Approve or reject a booking background check. This changes booking state and should require owner confirmation when used by an agent.",
+    {
+      bookingId: z.string().describe("The booking ID"),
+      payload: z.record(z.any()).describe("Approval request body."),
+    },
+    async ({ bookingId, payload }) => {
+      try {
+        const data = await client.post(`/bookings/set-background-check-approval/${bookingId}`, payload);
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: String(error instanceof Error ? error.message : error) }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "bookings_set_lease_prepared",
+    "Mark lease preparation state for a booking. This writes account data and should require owner confirmation when used by an agent.",
+    {
+      bookingId: z.string().describe("The booking ID"),
+      payload: z.record(z.any()).optional().describe("Optional request body."),
+    },
+    async ({ bookingId, payload }) => {
+      try {
+        const data = await client.post(`/bookings/set-lease-prepared/${bookingId}`, payload);
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: String(error instanceof Error ? error.message : error) }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "bookings_update_block_dates",
+    "Update an owner block/blocked-dates booking. This writes calendar state and should require owner confirmation when used by an agent.",
+    {
+      bookingId: z.string().describe("Blocked-dates booking ID"),
+      payload: z.record(z.any()).describe("Updated block fields."),
+    },
+    async ({ bookingId, payload }) => {
+      try {
+        const data = await client.post(`/bookings/block-dates/update/${bookingId}`, payload);
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: String(error instanceof Error ? error.message : error) }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "bookings_delete_block_dates",
+    "Delete an owner block/blocked-dates booking. This is destructive and should require owner confirmation when used by an agent.",
+    {
+      bookingId: z.string().describe("Blocked-dates booking ID"),
+    },
+    async ({ bookingId }) => {
+      try {
+        const data = await client.post(`/bookings/block-dates/delete/${bookingId}`);
         return {
           content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
         };

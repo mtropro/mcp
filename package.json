@@ -6,7 +6,10 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "tsx src/index.ts"
+    "dev": "tsx src/index.ts",
+    "audit:core-routes": "node scripts/audit-core-routes.mjs",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "test:agent-harness": "npm run build && node --test tests/agent-harness.test.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

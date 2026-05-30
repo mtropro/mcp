@@ -32,6 +32,24 @@ export class ApiClient {
     }
   }
 
+  async patch<T = any>(path: string, body?: Record<string, any>): Promise<T> {
+    try {
+      const response = await this.client.patch(path, body || {});
+      return this.handleResponse(response.data);
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
+  async delete<T = any>(path: string, body?: Record<string, any>): Promise<T> {
+    try {
+      const response = await this.client.delete(path, { data: body || {} });
+      return this.handleResponse(response.data);
+    } catch (error) {
+      throw this.handleError(error);
+    }
+  }
+
   private handleResponse(data: any): any {
     if (data && data.error === true) {
       throw new Error(data.message || "API request failed");

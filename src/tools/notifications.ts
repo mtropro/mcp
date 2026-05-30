@@ -82,4 +82,61 @@ export function registerNotificationTools(server: McpServer, client: ApiClient) 
       }
     }
   );
+
+  server.tool(
+    "notifications_delete",
+    "Delete a notification. This is destructive and should require owner confirmation when used by an agent.",
+    { notificationId: z.string().describe("The notification ID to delete") },
+    async ({ notificationId }) => {
+      try {
+        const data = await client.post("/notifications/delete", { notificationId });
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: String(error instanceof Error ? error.message : error) }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "notifications_create",
+    "Create an in-app notification. This writes account data and should require owner confirmation when used by an agent.",
+    { payload: z.record(z.any()).describe("Core /notifications/create request body.") },
+    async ({ payload }) => {
+      try {
+        const data = await client.post("/notifications/create", payload);
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: String(error instanceof Error ? error.message : error) }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  server.tool(
+    "notifications_send_email",
+    "Send an email with notification context. This sends external communication and should require owner confirmation when used by an agent.",
+    { payload: z.record(z.any()).describe("Core /notifications/send-email request body.") },
+    async ({ payload }) => {
+      try {
+        const data = await client.post("/notifications/send-email", payload);
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: String(error instanceof Error ? error.message : error) }],
+          isError: true,
+        };
+      }
+    }
+  );
 }

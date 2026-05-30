@@ -89,4 +89,23 @@ export function registerPipelineStageTools(server: McpServer, client: ApiClient)
       }
     }
   );
+
+  server.tool(
+    "pipeline_stages_reorder",
+    "Reorder CRM pipeline stages. This writes workflow configuration and should require owner confirmation when used by an agent.",
+    { payload: z.record(z.any()).describe("Core /pipeline-stages/reorder request body.") },
+    async ({ payload }) => {
+      try {
+        const data = await client.post("/pipeline-stages/reorder", payload);
+        return {
+          content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
+        };
+      } catch (error) {
+        return {
+          content: [{ type: "text", text: String(error instanceof Error ? error.message : error) }],
+          isError: true,
+        };
+      }
+    }
+  );
 }
