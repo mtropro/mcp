@@ -1,15 +1,21 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ApiClient } from "../api-client.js";
+import { formatRef, rememberRef, resetRefs, resolveRef } from "./refs.js";
 
 export function registerBookingTools(server: McpServer, client: ApiClient) {
   server.tool(
     "bookings_list",
-    "List all bookings you have access to. Returns booking details including property, guest, dates, status, and rate.",
+    "List all bookings you have access to. Returns compact live booking rows with simple bookingRef values like B001. Prefer bookingRef over raw ObjectIds in later tool calls.",
     {},
     async () => {
       try {
         const data = await client.get("/bookings/get/all");
+        if (Array.isArray(data.bookings)) {
+          return {
+            content: [{ type: "text", text: JSON.stringify(compactBookings(data.bookings), null, 2) }],
+          };
+        }
         return {
           content: [{ type: "text", text: JSON.stringify(data.bookings, null, 2) }],
         };
@@ -25,10 +31,14 @@ export function registerBookingTools(server: McpServer, client: ApiClient) {
   server.tool(
     "bookings_get",
     "Get detailed information about a specific booking by its ID.",
-    { bookingId: z.string().describe("The booking ID") },
-    async ({ bookingId }) => {
+    {
+      bookingId: z.string().optional().describe("The booking ObjectId. Prefer bookingRef when available."),
+      bookingRef: z.string().optional().describe("Simple booking ref returned by bookings_list, e.g. B001."),
+    },
+    async ({ bookingId, bookingRef }) => {
       try {
-        const data = await client.get(`/bookings/get/${bookingId}`);
+        const resolvedBookingId = resolveBookingId(bookingId, bookingRef);
+        const data = await client.get(`/bookings/get/${resolvedBookingId}`);
         return {
           content: [{ type: "text", text: JSON.stringify(data.booking, null, 2) }],
         };
@@ -78,9 +88,10 @@ export function registerBookingTools(server: McpServer, client: ApiClient) {
 
   server.tool(
     "bookings_update",
-    "Update an existing booking. Pass the bookingId and any fields to update.",
+    "Update an existing booking. Pass bookingRef from bookings_list whenever possible, plus any fields to update.",
     {
-      bookingId: z.string().describe("The booking ID to update"),
+      bookingId: z.string().optional().describe("The booking ObjectId. Prefer bookingRef when available."),
+      bookingRef: z.string().optional().describe("Simple booking ref returned by bookings_list, e.g. B001."),
       startDate: z.number().optional().describe("New start date (timestamp ms)"),
       endDate: z.number().optional().describe("New end date (timestamp ms)"),
       rate: z.number().optional().describe("New rate per day"),
@@ -94,9 +105,10 @@ export function registerBookingTools(server: McpServer, client: ApiClient) {
       }).optional().describe("Guest breakdown"),
       templateId: z.string().optional().describe("Lease template ID"),
     },
-    async ({ bookingId, ...params }) => {
+    async ({ bookingId, bookingRef, ...params }) => {
       try {
-        const data = await client.post(`/bookings/update/${bookingId}`, params);
+        const resolvedBookingId = resolveBookingId(bookingId, bookingRef);
+        const data = await client.post(`/bookings/update/${resolvedBookingId}`, params);
         return {
           content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
         };
@@ -112,10 +124,14 @@ export function registerBookingTools(server: McpServer, client: ApiClient) {
   server.tool(
     "bookings_delete",
     "Delete a booking by its ID. This action cannot be undone.",
-    { bookingId: z.string().describe("The booking ID to delete") },
-    async ({ bookingId }) => {
+    {
+      bookingId: z.string().optional().describe("The booking ObjectId. Prefer bookingRef when available."),
+      bookingRef: z.string().optional().describe("Simple booking ref returned by bookings_list, e.g. B001."),
+    },
+    async ({ bookingId, bookingRef }) => {
       try {
-        const data = await client.post(`/bookings/delete/${bookingId}`);
+        const resolvedBookingId = resolveBookingId(bookingId, bookingRef);
+        const data = await client.post(`/bookings/delete/${resolvedBookingId}`);
         return {
           content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
         };
@@ -179,11 +195,13 @@ export function registerBookingTools(server: McpServer, client: ApiClient) {
     "bookings_reverse_to_lead",
     "Reverse a booking back to a lead. This changes workflow state and should require owner confirmation when used by an agent.",
     {
-      bookingId: z.string().describe("The booking ID"),
+      bookingId: z.string().optional().describe("The booking ObjectId. Prefer bookingRef when available."),
+      bookingRef: z.string().optional().describe("Simple booking ref returned by bookings_list, e.g. B001."),
     },
-    async ({ bookingId }) => {
+    async ({ bookingId, bookingRef }) => {
       try {
-        const data = await client.post(`/bookings/reverse-to-lead/${bookingId}`);
+        const resolvedBookingId = resolveBookingId(bookingId, bookingRef);
+        const data = await client.post(`/bookings/reverse-to-lead/${resolvedBookingId}`);
         return {
           content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
         };
@@ -200,12 +218,14 @@ export function registerBookingTools(server: McpServer, client: ApiClient) {
     "bookings_sign",
     "Sign a booking/lease as owner. This is legally significant and should require owner confirmation when used by an agent.",
     {
-      bookingId: z.string().describe("The booking ID"),
+      bookingId: z.string().optional().describe("The booking ObjectId. Prefer bookingRef when available."),
+      bookingRef: z.string().optional().describe("Simple booking ref returned by bookings_list, e.g. B001."),
       payload: z.record(z.any()).optional().describe("Optional signature payload."),
     },
-    async ({ bookingId, payload }) => {
+    async ({ bookingId, bookingRef, payload }) => {
       try {
-        const data = await client.post(`/bookings/sign/${bookingId}`, payload);
+        const resolvedBookingId = resolveBookingId(bookingId, bookingRef);
+        const data = await client.post(`/bookings/sign/${resolvedBookingId}`, payload);
         return {
           content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
         };
@@ -222,12 +242,14 @@ export function registerBookingTools(server: McpServer, client: ApiClient) {
     "bookings_set_primary_guest",
     "Set the primary guest for a booking. This writes account data and should require owner confirmation when used by an agent.",
     {
-      bookingId: z.string().describe("The booking ID"),
+      bookingId: z.string().optional().describe("The booking ObjectId. Prefer bookingRef when available."),
+      bookingRef: z.string().optional().describe("Simple booking ref returned by bookings_list, e.g. B001."),
       guestId: z.string().describe("The guest ID to set as primary."),
     },
-    async ({ bookingId, guestId }) => {
+    async ({ bookingId, bookingRef, guestId }) => {
       try {
-        const data = await client.post(`/bookings/set-primary-guest/${bookingId}`, { guestId });
+        const resolvedBookingId = resolveBookingId(bookingId, bookingRef);
+        const data = await client.post(`/bookings/set-primary-guest/${resolvedBookingId}`, { guestId });
         return {
           content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
         };
@@ -244,12 +266,14 @@ export function registerBookingTools(server: McpServer, client: ApiClient) {
     "bookings_request_background_check",
     "Request a background check for a booking. This can trigger external workflow and should require owner confirmation when used by an agent.",
     {
-      bookingId: z.string().describe("The booking ID"),
+      bookingId: z.string().optional().describe("The booking ObjectId. Prefer bookingRef when available."),
+      bookingRef: z.string().optional().describe("Simple booking ref returned by bookings_list, e.g. B001."),
       payload: z.record(z.any()).optional().describe("Optional background check request body."),
     },
-    async ({ bookingId, payload }) => {
+    async ({ bookingId, bookingRef, payload }) => {
       try {
-        const data = await client.post(`/bookings/request-background-check/${bookingId}`, payload);
+        const resolvedBookingId = resolveBookingId(bookingId, bookingRef);
+        const data = await client.post(`/bookings/request-background-check/${resolvedBookingId}`, payload);
         return {
           content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
         };
@@ -266,13 +290,15 @@ export function registerBookingTools(server: McpServer, client: ApiClient) {
     "bookings_set_background_check_approval",
     "Approve or reject a booking background check. This changes booking state and should require owner confirmation when used by an agent.",
     {
-      bookingId: z.string().describe("The booking ID"),
+      bookingId: z.string().optional().describe("The booking ObjectId. Prefer bookingRef when available."),
+      bookingRef: z.string().optional().describe("Simple booking ref returned by bookings_list, e.g. B001."),
       approval: z.boolean().optional().describe("Set true to approve the background check, false to reject it."),
       approved: z.boolean().optional().describe("Backward-compatible alias for approval."),
       payload: z.record(z.any()).optional().describe("Optional request body. Use approval, not approved, when possible."),
     },
-    async ({ bookingId, approval, approved, payload }) => {
+    async ({ bookingId, bookingRef, approval, approved, payload }) => {
       try {
+        const resolvedBookingId = resolveBookingId(bookingId, bookingRef);
         const normalizedApproval =
           approval ??
           approved ??
@@ -281,7 +307,7 @@ export function registerBookingTools(server: McpServer, client: ApiClient) {
         if (typeof normalizedApproval !== "boolean") {
           throw new Error("approval is required and must be a boolean.");
         }
-        const data = await client.post(`/bookings/set-background-check-approval/${bookingId}`, {
+        const data = await client.post(`/bookings/set-background-check-approval/${resolvedBookingId}`, {
           ...(payload || {}),
           approval: normalizedApproval,
         });
@@ -301,12 +327,14 @@ export function registerBookingTools(server: McpServer, client: ApiClient) {
     "bookings_set_lease_prepared",
     "Mark lease preparation state for a booking. This writes account data and should require owner confirmation when used by an agent.",
     {
-      bookingId: z.string().describe("The booking ID"),
+      bookingId: z.string().optional().describe("The booking ObjectId. Prefer bookingRef when available."),
+      bookingRef: z.string().optional().describe("Simple booking ref returned by bookings_list, e.g. B001."),
       payload: z.record(z.any()).optional().describe("Optional request body."),
     },
-    async ({ bookingId, payload }) => {
+    async ({ bookingId, bookingRef, payload }) => {
       try {
-        const data = await client.post(`/bookings/set-lease-prepared/${bookingId}`, payload);
+        const resolvedBookingId = resolveBookingId(bookingId, bookingRef);
+        const data = await client.post(`/bookings/set-lease-prepared/${resolvedBookingId}`, payload);
         return {
           content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
         };
@@ -323,12 +351,14 @@ export function registerBookingTools(server: McpServer, client: ApiClient) {
     "bookings_update_block_dates",
     "Update an owner block/blocked-dates booking. This writes calendar state and should require owner confirmation when used by an agent.",
     {
-      bookingId: z.string().describe("Blocked-dates booking ID"),
+      bookingId: z.string().optional().describe("Blocked-dates booking ObjectId. Prefer bookingRef when available."),
+      bookingRef: z.string().optional().describe("Simple booking ref returned by bookings_list, e.g. B001."),
       payload: z.record(z.any()).describe("Updated block fields."),
     },
-    async ({ bookingId, payload }) => {
+    async ({ bookingId, bookingRef, payload }) => {
       try {
-        const data = await client.post(`/bookings/block-dates/update/${bookingId}`, payload);
+        const resolvedBookingId = resolveBookingId(bookingId, bookingRef);
+        const data = await client.post(`/bookings/block-dates/update/${resolvedBookingId}`, payload);
         return {
           content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
         };
@@ -345,11 +375,13 @@ export function registerBookingTools(server: McpServer, client: ApiClient) {
     "bookings_delete_block_dates",
     "Delete an owner block/blocked-dates booking. This is destructive and should require owner confirmation when used by an agent.",
     {
-      bookingId: z.string().describe("Blocked-dates booking ID"),
+      bookingId: z.string().optional().describe("Blocked-dates booking ObjectId. Prefer bookingRef when available."),
+      bookingRef: z.string().optional().describe("Simple booking ref returned by bookings_list, e.g. B001."),
     },
-    async ({ bookingId }) => {
+    async ({ bookingId, bookingRef }) => {
       try {
-        const data = await client.post(`/bookings/block-dates/delete/${bookingId}`);
+        const resolvedBookingId = resolveBookingId(bookingId, bookingRef);
+        const data = await client.post(`/bookings/block-dates/delete/${resolvedBookingId}`);
         return {
           content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
         };
@@ -361,4 +393,55 @@ export function registerBookingTools(server: McpServer, client: ApiClient) {
       }
     }
   );
+}
+
+function resolveBookingId(bookingId: string | undefined, bookingRef: string | undefined): string {
+  return resolveRef("booking", bookingRef || bookingId, "bookingRef");
+}
+
+function compactBookings(bookings: any[]) {
+  resetRefs("booking");
+  return {
+    guidance: [
+      "Use bookingRef values like B001 in booking write tools instead of raw ObjectIds.",
+      "Refs are generated from the live bookings_list result and prevent stale ID mixups.",
+      "Run bookings_list again before writing if a ref is unknown or the conversation was resumed.",
+    ],
+    count: bookings.length,
+    bookings: bookings.map((booking, index) => {
+      const id = String(booking.id || booking._id || "");
+      const bookingRef = formatRef("B", index);
+      rememberRef("booking", bookingRef, id);
+      return {
+        bookingRef,
+        idHint: id ? id.slice(-6) : undefined,
+        status: booking.status,
+        guestName: guestName(booking),
+        propertyName: booking.property?.propertyName || booking.propertyName,
+        startDate: booking.startDate,
+        endDate: booking.endDate,
+        rate: booking.rate,
+        source: booking.source,
+        backgroundCheck: {
+          hasReport: Boolean(booking.backgroundChecksReport),
+          approval: booking.backgroundChecksApproval,
+        },
+        lease: {
+          hasTemplate: Boolean(booking.templateId),
+          guestSignCount: Array.isArray(booking.guestSign) ? booking.guestSign.length : 0,
+          ownerSignCount: Array.isArray(booking.ownerSign) ? booking.ownerSign.length : 0,
+          additionalGuestCount: Array.isArray(booking.additionalGuests) ? booking.additionalGuests.length : 0,
+        },
+      };
+    }),
+  };
+}
+
+function guestName(booking: any): string | undefined {
+  const guest = booking.guest;
+  if (guest && typeof guest === "object") {
+    const name = [guest.name, guest.surname].filter(Boolean).join(" ").trim();
+    return name || guest.email;
+  }
+  return booking.guestName || booking.guestId;
 }

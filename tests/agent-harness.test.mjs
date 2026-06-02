@@ -56,6 +56,76 @@ test("agent harness lists and calls MCP tools through stdio against mocked Core"
   }
 });
 
+test("MCP list tools expose simple refs that write tools can resolve", async () => {
+  const harness = new AgentMcpHarness({
+    responseForRequest(request) {
+      if (request.path === "/bookings/get/all") {
+        return {
+          error: false,
+          bookings: [
+            {
+              id: "aaaaaaaaaaaaaaaaaaaaaaaa",
+              status: "pending",
+              guest: { name: "Ada", surname: "Lovelace" },
+              property: { propertyName: "Main House" },
+              startDate: 1780264800000,
+              endDate: 1780351200000,
+              rate: 100,
+            },
+          ],
+        };
+      }
+      if (request.path === "/payments/list") {
+        return {
+          error: false,
+          payments: [
+            {
+              id: "bbbbbbbbbbbbbbbbbbbbbbbb",
+              status: "overdue",
+              name: "Initial deposit",
+              amount: 100000,
+              bookingId: "aaaaaaaaaaaaaaaaaaaaaaaa",
+            },
+          ],
+        };
+      }
+      return { error: false, request };
+    },
+  });
+  await harness.start();
+
+  try {
+    const bookings = parseTextResult(await harness.callTool("bookings_list"));
+    assert.equal(bookings.bookings[0].bookingRef, "B001");
+    assert.equal(bookings.bookings[0].guestName, "Ada Lovelace");
+    assert.equal(bookings.bookings[0].idHint, "aaaaaa");
+    assert.equal(bookings.bookings[0].id, undefined);
+
+    await harness.callTool("bookings_update", {
+      bookingRef: "B001",
+      status: "confirmed",
+    });
+    const bookingUpdate = harness.lastRequest();
+    assert.equal(bookingUpdate.path, "/bookings/update/aaaaaaaaaaaaaaaaaaaaaaaa");
+    assert.deepEqual(bookingUpdate.body, { status: "confirmed" });
+
+    const payments = parseTextResult(await harness.callTool("payments_list"));
+    assert.equal(payments.payments[0].paymentRef, "PAY001");
+    assert.equal(payments.payments[0].idHint, "bbbbbb");
+    assert.equal(payments.payments[0].id, undefined);
+
+    await harness.callTool("payments_send_reminder", {
+      paymentRef: "PAY001",
+      customMessage: "Please pay.",
+    });
+    const paymentReminder = harness.lastRequest();
+    assert.equal(paymentReminder.path, "/payments/send-reminder/bbbbbbbbbbbbbbbbbbbbbbbb");
+    assert.deepEqual(paymentReminder.body, { customMessage: "Please pay." });
+  } finally {
+    await harness.stop();
+  }
+});
+
 test("MCP Core route audit has no missing endpoints", () => {
   const output = execFileSync(process.execPath, ["scripts/audit-core-routes.mjs"], {
     cwd: rootDir,

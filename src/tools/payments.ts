@@ -2,15 +2,18 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ApiClient } from "../api-client.js";
 import { anyPayload, anyQuery, fail, ok } from "./utils.js";
+import { formatRef, rememberRef, resetRefs, resolveRef } from "./refs.js";
 
 export function registerPaymentTools(server: McpServer, client: ApiClient) {
   server.tool(
     "payments_list",
-    "List payments visible to the authenticated owner. Supports the same filters as Core /payments/list through query.",
+    "List payments visible to the authenticated owner. Returns compact live payment rows with simple paymentRef values like PAY001. Prefer paymentRef over raw ObjectIds in later tool calls.",
     { query: anyQuery },
     async ({ query }) => {
       try {
-        return ok(await client.get("/payments/list", query));
+        const data = await client.get("/payments/list", query);
+        if (Array.isArray(data.payments)) return ok(compactPayments(data.payments));
+        return ok(data);
       } catch (error) {
         return fail(error);
       }
@@ -47,12 +50,13 @@ export function registerPaymentTools(server: McpServer, client: ApiClient) {
     "payments_mark_paid",
     "Mark a payment as paid. This changes financial state and should require owner confirmation when used by an agent.",
     {
-      paymentId: z.string().describe("Payment ID."),
+      paymentId: z.string().optional().describe("Payment ObjectId. Prefer paymentRef when available."),
+      paymentRef: z.string().optional().describe("Simple payment ref returned by payments_list, e.g. PAY001."),
       payload: anyPayload,
     },
-    async ({ paymentId, payload }) => {
+    async ({ paymentId, paymentRef, payload }) => {
       try {
-        return ok(await client.post(`/payments/mark-paid/${paymentId}`, payload));
+        return ok(await client.post(`/payments/mark-paid/${resolvePaymentId(paymentId, paymentRef)}`, payload));
       } catch (error) {
         return fail(error);
       }
@@ -62,10 +66,13 @@ export function registerPaymentTools(server: McpServer, client: ApiClient) {
   server.tool(
     "payments_check",
     "Check a payment's current provider status and synchronize MTRO state.",
-    { paymentId: z.string().describe("Payment ID.") },
-    async ({ paymentId }) => {
+    {
+      paymentId: z.string().optional().describe("Payment ObjectId. Prefer paymentRef when available."),
+      paymentRef: z.string().optional().describe("Simple payment ref returned by payments_list, e.g. PAY001."),
+    },
+    async ({ paymentId, paymentRef }) => {
       try {
-        return ok(await client.post(`/payments/check/${paymentId}`));
+        return ok(await client.post(`/payments/check/${resolvePaymentId(paymentId, paymentRef)}`));
       } catch (error) {
         return fail(error);
       }
@@ -75,10 +82,13 @@ export function registerPaymentTools(server: McpServer, client: ApiClient) {
   server.tool(
     "payments_capture",
     "Capture a payment when supported. This changes financial state and should require owner confirmation when used by an agent.",
-    { paymentId: z.string().describe("Payment ID.") },
-    async ({ paymentId }) => {
+    {
+      paymentId: z.string().optional().describe("Payment ObjectId. Prefer paymentRef when available."),
+      paymentRef: z.string().optional().describe("Simple payment ref returned by payments_list, e.g. PAY001."),
+    },
+    async ({ paymentId, paymentRef }) => {
       try {
-        return ok(await client.post(`/payments/capture/${paymentId}`));
+        return ok(await client.post(`/payments/capture/${resolvePaymentId(paymentId, paymentRef)}`));
       } catch (error) {
         return fail(error);
       }
@@ -88,10 +98,13 @@ export function registerPaymentTools(server: McpServer, client: ApiClient) {
   server.tool(
     "payments_cancel",
     "Cancel a payment. This changes financial state and should require owner confirmation when used by an agent.",
-    { paymentId: z.string().describe("Payment ID.") },
-    async ({ paymentId }) => {
+    {
+      paymentId: z.string().optional().describe("Payment ObjectId. Prefer paymentRef when available."),
+      paymentRef: z.string().optional().describe("Simple payment ref returned by payments_list, e.g. PAY001."),
+    },
+    async ({ paymentId, paymentRef }) => {
       try {
-        return ok(await client.post(`/payments/cancel/${paymentId}`));
+        return ok(await client.post(`/payments/cancel/${resolvePaymentId(paymentId, paymentRef)}`));
       } catch (error) {
         return fail(error);
       }
@@ -102,12 +115,13 @@ export function registerPaymentTools(server: McpServer, client: ApiClient) {
     "payments_update",
     "Update a payment. This writes account data and should require owner confirmation when used by an agent.",
     {
-      paymentId: z.string().describe("Payment ID."),
+      paymentId: z.string().optional().describe("Payment ObjectId. Prefer paymentRef when available."),
+      paymentRef: z.string().optional().describe("Simple payment ref returned by payments_list, e.g. PAY001."),
       payload: z.record(z.any()).describe("Core /payments/update/:id request body."),
     },
-    async ({ paymentId, payload }) => {
+    async ({ paymentId, paymentRef, payload }) => {
       try {
-        return ok(await client.post(`/payments/update/${paymentId}`, payload));
+        return ok(await client.post(`/payments/update/${resolvePaymentId(paymentId, paymentRef)}`, payload));
       } catch (error) {
         return fail(error);
       }
@@ -117,10 +131,13 @@ export function registerPaymentTools(server: McpServer, client: ApiClient) {
   server.tool(
     "payments_generate_link",
     "Generate or refresh a payment checkout link. This may create a new Stripe session and should require owner confirmation when sent externally.",
-    { paymentId: z.string().describe("Payment ID.") },
-    async ({ paymentId }) => {
+    {
+      paymentId: z.string().optional().describe("Payment ObjectId. Prefer paymentRef when available."),
+      paymentRef: z.string().optional().describe("Simple payment ref returned by payments_list, e.g. PAY001."),
+    },
+    async ({ paymentId, paymentRef }) => {
       try {
-        return ok(await client.post(`/payments/generate-link/${paymentId}`));
+        return ok(await client.post(`/payments/generate-link/${resolvePaymentId(paymentId, paymentRef)}`));
       } catch (error) {
         return fail(error);
       }
@@ -131,12 +148,13 @@ export function registerPaymentTools(server: McpServer, client: ApiClient) {
     "payments_send_reminder",
     "Send a payment reminder to a guest. This sends external communication and should require owner confirmation when used by an agent.",
     {
-      paymentId: z.string().describe("Payment ID."),
+      paymentId: z.string().optional().describe("Payment ObjectId. Prefer paymentRef when available."),
+      paymentRef: z.string().optional().describe("Simple payment ref returned by payments_list, e.g. PAY001."),
       customMessage: z.string().optional().describe("Optional owner-written message included in the reminder."),
     },
-    async ({ paymentId, customMessage }) => {
+    async ({ paymentId, paymentRef, customMessage }) => {
       try {
-        return ok(await client.post(`/payments/send-reminder/${paymentId}`, { customMessage }));
+        return ok(await client.post(`/payments/send-reminder/${resolvePaymentId(paymentId, paymentRef)}`, { customMessage }));
       } catch (error) {
         return fail(error);
       }
@@ -197,6 +215,41 @@ export function registerPaymentTools(server: McpServer, client: ApiClient) {
       }
     }
   );
+}
+
+function resolvePaymentId(paymentId: string | undefined, paymentRef: string | undefined): string {
+  return resolveRef("payment", paymentRef || paymentId, "paymentRef");
+}
+
+function compactPayments(payments: any[]) {
+  resetRefs("payment");
+  return {
+    guidance: [
+      "Use paymentRef values like PAY001 in payment write tools instead of raw ObjectIds.",
+      "Refs are generated from the live payments_list result and prevent stale ID mixups.",
+      "Run payments_list again before writing if a ref is unknown or the conversation was resumed.",
+    ],
+    count: payments.length,
+    payments: payments.map((payment, index) => {
+      const id = String(payment.id || payment._id || "");
+      const paymentRef = formatRef("PAY", index);
+      rememberRef("payment", paymentRef, id);
+      return {
+        paymentRef,
+        idHint: id ? id.slice(-6) : undefined,
+        status: payment.status,
+        name: payment.name || payment.description || payment.paymentName,
+        amount: payment.amount,
+        dueDate: payment.dueDate,
+        bookingIdHint: payment.bookingId ? String(payment.bookingId).slice(-6) : undefined,
+        guestIdHint: payment.guestId ? String(payment.guestId).slice(-6) : undefined,
+        remindersSent: payment.remindersSent,
+        paymentProvider: payment.paymentProvider,
+        paymentCategory: payment.paymentCategory,
+        paymentType: payment.paymentType,
+      };
+    }),
+  };
 }
 
 export function registerStripeAccountTools(server: McpServer, client: ApiClient) {

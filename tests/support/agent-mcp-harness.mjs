@@ -9,6 +9,7 @@ export class AgentMcpHarness {
     this.apiKey = options.apiKey || "mtro_test_key";
     this.requests = [];
     this.stderr = "";
+    this.responseForRequest = options.responseForRequest;
     this.coreServer = null;
     this.coreUrl = null;
     this.client = null;
@@ -32,9 +33,10 @@ export class AgentMcpHarness {
       };
       this.requests.push(request);
       const responseBody =
-        request.path === "/users/get"
+        this.responseForRequest?.(request) ||
+        (request.path === "/users/get"
           ? { error: false, user: { id: "user_1", email: "owner@example.com", role: "user" }, request }
-          : { error: false, request };
+          : { error: false, request });
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(responseBody));
     });
