@@ -267,11 +267,24 @@ export function registerBookingTools(server: McpServer, client: ApiClient) {
     "Approve or reject a booking background check. This changes booking state and should require owner confirmation when used by an agent.",
     {
       bookingId: z.string().describe("The booking ID"),
-      payload: z.record(z.any()).describe("Approval request body."),
+      approval: z.boolean().optional().describe("Set true to approve the background check, false to reject it."),
+      approved: z.boolean().optional().describe("Backward-compatible alias for approval."),
+      payload: z.record(z.any()).optional().describe("Optional request body. Use approval, not approved, when possible."),
     },
-    async ({ bookingId, payload }) => {
+    async ({ bookingId, approval, approved, payload }) => {
       try {
-        const data = await client.post(`/bookings/set-background-check-approval/${bookingId}`, payload);
+        const normalizedApproval =
+          approval ??
+          approved ??
+          (typeof payload?.approval === "boolean" ? payload.approval : undefined) ??
+          (typeof payload?.approved === "boolean" ? payload.approved : undefined);
+        if (typeof normalizedApproval !== "boolean") {
+          throw new Error("approval is required and must be a boolean.");
+        }
+        const data = await client.post(`/bookings/set-background-check-approval/${bookingId}`, {
+          ...(payload || {}),
+          approval: normalizedApproval,
+        });
         return {
           content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
         };
