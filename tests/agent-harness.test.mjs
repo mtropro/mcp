@@ -101,6 +101,25 @@ test("MCP list tools expose simple refs that write tools can resolve", async () 
     assert.equal(bookings.bookings[0].idHint, "aaaaaa");
     assert.equal(bookings.bookings[0].id, undefined);
 
+    const requestCountAfterList = harness.requests.length;
+    const rawBookingIdWrite = await captureToolFailure(
+      harness.callTool("bookings_update", {
+        bookingId: "aaaaaaaaaaaaaaaaaaaaaaaa",
+        status: "confirmed",
+      }),
+    );
+    assertToolFailureMentions(rawBookingIdWrite, /bookingRef/i);
+    assert.equal(harness.requests.length, requestCountAfterList);
+
+    const rawBookingRefWrite = await captureToolFailure(
+      harness.callTool("bookings_update", {
+        bookingRef: "aaaaaaaaaaaaaaaaaaaaaaaa",
+        status: "confirmed",
+      }),
+    );
+    assertToolFailureMentions(rawBookingRefWrite, /bookingRef is required/i);
+    assert.equal(harness.requests.length, requestCountAfterList);
+
     await harness.callTool("bookings_update", {
       bookingRef: "B001",
       status: "confirmed",
@@ -125,6 +144,24 @@ test("MCP list tools expose simple refs that write tools can resolve", async () 
     await harness.stop();
   }
 });
+
+async function captureToolFailure(toolCall) {
+  try {
+    return { result: await toolCall };
+  } catch (error) {
+    return { error };
+  }
+}
+
+function assertToolFailureMentions(failure, pattern) {
+  const text = failure.error
+    ? String(failure.error.message || failure.error)
+    : String(failure.result?.content?.[0]?.text || "");
+  assert.match(text, pattern);
+  if (failure.result) {
+    assert.equal(failure.result.isError, true);
+  }
+}
 
 test("MCP Core route audit has no missing endpoints", () => {
   const output = execFileSync(process.execPath, ["scripts/audit-core-routes.mjs"], {
