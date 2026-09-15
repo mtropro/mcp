@@ -23,6 +23,7 @@ const spec = JSON.parse(readFileSync(specPath, "utf8"));
 const byRoute = readRouteBodyFields(coreAppPath);
 
 const problems = [];
+const missingRequired = [];
 let checked = 0;
 let skippedForwarding = 0;
 let skippedUnknown = 0;
@@ -37,6 +38,23 @@ for (const [path, byMethod] of Object.entries(spec.paths)) {
     if (!route) {
       skippedUnknown += 1;
       continue;
+    }
+
+    // A field the handler refuses to run without has to be documented, and
+    // documented as required.
+    if (route.required) {
+      const declaredRequired = new Set(schema.required || []);
+      const gaps = route.required.filter(
+        (field) => !documented.includes(field) || !declaredRequired.has(field)
+      );
+      if (gaps.length > 0) {
+        missingRequired.push({
+          endpoint: `${method.toUpperCase()} ${path}`,
+          operationId: operation.operationId,
+          requiredByCore: route.required,
+          undocumentedOrOptional: gaps,
+        });
+      }
     }
     if (route.forwards) {
       // The handler passes the body on, so a field it does not name directly
@@ -63,6 +81,7 @@ console.log(`  verified against the handler:     ${checked}`);
 console.log(`  handler forwards the whole body:  ${skippedForwarding}`);
 console.log(`  handler not resolvable:           ${skippedUnknown}`);
 console.log(`Operations documenting a field Core never reads: ${problems.length}`);
+console.log(`Operations missing a field Core requires:        ${missingRequired.length}`);
 
 for (const problem of problems) {
   console.log(`\n${problem.endpoint}  (${problem.operationId})`);
@@ -70,4 +89,10 @@ for (const problem of problems) {
   console.log(`  Core reads:                ${problem.readByCore.join(", ")}`);
 }
 
-if (problems.length > 0) process.exitCode = 1;
+for (const gap of missingRequired) {
+  console.log(`\n${gap.endpoint}  (${gap.operationId})`);
+  console.log(`  Core requires:              ${gap.requiredByCore.join(", ")}`);
+  console.log(`  undocumented or optional:   ${gap.undocumentedOrOptional.join(", ")}`);
+}
+
+if (problems.length > 0 || missingRequired.length > 0) process.exitCode = 1;

@@ -26,11 +26,12 @@ export function registerGuestTools(server: McpServer, client: ApiClient) {
 
   server.tool(
     "guests_create",
-    "Create a new guest profile. Required: email, name, surname. The guest will receive an invitation to set up their account.",
+    "Create a new guest profile. Required: email, name, surname, password. The password must contain at least 8 characters with an uppercase letter, a lowercase letter, a number, and a special character.",
     {
       email: z.string().describe("Guest email address"),
       name: z.string().describe("Guest first name"),
       surname: z.string().describe("Guest last name"),
+      password: z.string().describe("Initial account password. At least 8 characters with uppercase, lowercase, a number, and a special character."),
       mobile: z.string().optional().describe("Guest mobile number"),
       birthday: z.number().optional().describe("Birthday as millisecond timestamp"),
       country: z.string().optional().describe("Guest country"),
@@ -56,9 +57,9 @@ export function registerGuestTools(server: McpServer, client: ApiClient) {
     "Update a guest's profile information.",
     {
       guestId: z.string().describe("The guest ID to update"),
-      name: z.string().optional().describe("Updated first name"),
-      surname: z.string().optional().describe("Updated last name"),
-      email: z.string().optional().describe("Updated email"),
+      name: z.string().describe("First name. Core requires it on every update, so send the current value when it is unchanged."),
+      surname: z.string().describe("Surname. Core requires it on every update, so send the current value when it is unchanged."),
+      email: z.string().describe("Email address. Core requires it on every update, so send the current value when it is unchanged."),
       mobile: z.string().optional().describe("Updated mobile number"),
       birthday: z.number().optional().describe("Updated birthday (timestamp ms)"),
       country: z.string().optional().describe("Updated country"),

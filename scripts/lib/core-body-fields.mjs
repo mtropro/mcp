@@ -110,6 +110,49 @@ function bodyFieldsIn(node, sourceFile) {
   return { fields, forwards };
 }
 
+/**
+ * Handlers in this codebase open with a single guard of the form
+ *   if (req.body.a !== undefined && req.body.b !== undefined) { ... }
+ * and answer "Malformed request." when it does not hold. Reading only that
+ * first guard, and only when every operand has that exact shape, keeps this
+ * from mistaking an optional branch such as `if (req.body.expiresAt !== undefined)`
+ * for a requirement.
+ */
+function requiredBodyFieldsIn(body, sourceFile) {
+  const firstStatement = body.statements?.find((statement) => !ts.isVariableStatement(statement));
+  if (!firstStatement || !ts.isIfStatement(firstStatement)) return null;
+
+  const operands = [];
+  const flatten = (node) => {
+    if (
+      ts.isBinaryExpression(node) &&
+      node.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken
+    ) {
+      flatten(node.left);
+      flatten(node.right);
+      return;
+    }
+    operands.push(node);
+  };
+  flatten(firstStatement.expression);
+
+  const fields = [];
+  for (const operand of operands) {
+    if (
+      !ts.isBinaryExpression(operand) ||
+      operand.operatorToken.kind !== ts.SyntaxKind.ExclamationEqualsEqualsToken ||
+      !ts.isPropertyAccessExpression(operand.left) ||
+      operand.right.getText(sourceFile) !== "undefined"
+    ) {
+      return null;
+    }
+    const target = operand.left.expression.getText(sourceFile);
+    if (target === "req.body") fields.push(operand.left.name.text);
+    else if (target !== "req.params") return null;
+  }
+  return fields.length > 0 ? fields : null;
+}
+
 export function readRouteBodyFields(coreAppPath) {
   const coreRoot = dirname(coreAppPath);
   const appSourceFile = parse(coreAppPath);
@@ -123,7 +166,10 @@ export function readRouteBodyFields(coreAppPath) {
     const found = new Map();
     const visit = (node) => {
       if (ts.isFunctionDeclaration(node) && node.name && node.body) {
-        found.set(node.name.text, bodyFieldsIn(node.body, sourceFile));
+        found.set(node.name.text, {
+          ...bodyFieldsIn(node.body, sourceFile),
+          required: requiredBodyFieldsIn(node.body, sourceFile),
+        });
       }
       if (
         ts.isVariableStatement(node) &&

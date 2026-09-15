@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
@@ -23,6 +23,8 @@ const accessControlPath =
   process.env.CORE_ACCESS_CONTROL_PATH || resolve(root, "../core/libs/access-control.ts");
 const outputPath = process.env.OPENAPI_OUT || resolve(root, "../core/openapi/openapi.json");
 const reportPath = process.env.OPENAPI_REPORT || resolve(root, "openapi/generation-report.json");
+const responseShapesPath =
+  process.env.OPENAPI_RESPONSE_SHAPES || resolve(root, "openapi/response-shapes.json");
 
 const TAG_TITLES = {
   "admin.ts": "Admin utilities",
@@ -112,8 +114,15 @@ function objectSchemaFrom(shape, omit = []) {
   return jsonSchemaFor(z.object(kept));
 }
 
+/**
+ * A schema that names no properties tells an integrator nothing. This covers
+ * both `z.record(z.any())`, which becomes an object with only
+ * `additionalProperties`, and an optional record, which becomes an empty schema
+ * with no type at all.
+ */
 function isOpaqueSchema(schema) {
-  if (!schema || schema.type !== "object") return false;
+  if (!schema) return true;
+  if (schema.type && schema.type !== "object") return false;
   return Object.keys(schema.properties || {}).length === 0;
 }
 
@@ -210,6 +219,12 @@ function main() {
   const coreRoutes = readCoreRoutes(coreAppPath);
   const { scopes, accessActions } = readRouteScopes(coreAppPath, accessControlPath);
   const bodyFields = readRouteBodyFields(coreAppPath);
+  // Observed response bodies, captured by scripts/capture-responses against a
+  // throwaway local Core. They describe the shape of a real reply, which no
+  // amount of reading the tool registry can reveal.
+  const responseShapes = existsSync(responseShapesPath)
+    ? JSON.parse(readFileSync(responseShapesPath, "utf8"))
+    : {};
   const uploadRoutes = readUploadRoutes(coreAppPath);
   const recorded = recordMcpTools();
   const extracted = extractToolCalls(resolve(root, "src/tools"));
@@ -220,6 +235,7 @@ function main() {
     unmatchedToolCalls: [],
     sharedEndpoints: [],
     multipartEndpoints: [],
+    observedResponses: [],
     requestSchemaFromCoreHandler: [],
     needsManualRequestSchema: [],
     needsManualPayloadMapping: [],
@@ -330,11 +346,12 @@ function main() {
     const routeScopes = scopes.get(key);
     if (!routeScopes) report.operationsWithoutScope.push({ endpoint: key, tool: primary.tool.name });
 
+    const coreBody = bodyFields.get(key);
     const upload = uploadRoutes.get(key);
     if (upload) report.multipartEndpoints.push({ endpoint: key, field: upload.field });
 
     if (!upload && primary.schema && isOpaqueSchema(primary.schema)) {
-      const recovered = schemaFromCoreFields(bodyFields.get(key), parameterNames);
+      const recovered = schemaFromCoreFields(coreBody, parameterNames);
       if (recovered) {
         primary.schema = recovered;
         report.requestSchemaFromCoreHandler.push({ endpoint: key, tool: primary.tool.name });
@@ -342,6 +359,9 @@ function main() {
         report.needsManualRequestSchema.push({ endpoint: key, tool: primary.tool.name });
       }
     }
+
+    const observed = responseShapes[`${method} ${toOpenApiPath(route.path)}`];
+    if (observed) report.observedResponses.push({ endpoint: key });
 
     const operation = {
       operationId: primary.discriminator
@@ -352,12 +372,19 @@ function main() {
       description: primary.meta.description,
       parameters: parameters.length > 0 ? parameters : undefined,
       responses: {
-        200: {
-          description: "Successful response.",
-          content: {
-            "application/json": { schema: { $ref: "#/components/schemas/SuccessEnvelope" } },
-          },
-        },
+        200: observed
+          ? {
+              description:
+                "Successful response. This shape was observed from a real reply; " +
+                "fields that were empty in the observed record may be absent here.",
+              content: { "application/json": { schema: observed.schema } },
+            }
+          : {
+              description: "Successful response.",
+              content: {
+                "application/json": { schema: { $ref: "#/components/schemas/SuccessEnvelope" } },
+              },
+            },
         401: {
           description: "Missing, invalid, expired, or revoked API key.",
           content: {
@@ -375,6 +402,21 @@ function main() {
 
     if (routeScopes) operation["x-mtro-scopes"] = routeScopes;
     operation["x-mtro-mcp-tools"] = built.map((candidate) => candidate.tool.name).sort();
+
+    // The handler's own guard decides what is mandatory. A tool may mark a
+    // field optional and then always send it, but the HTTP contract is what an
+    // integrator has to satisfy.
+    if (!upload && primary.schema?.properties && coreBody?.required) {
+      const alsoRequired = coreBody.required.filter((field) =>
+        Object.hasOwn(primary.schema.properties, field)
+      );
+      if (alsoRequired.length > 0) {
+        primary.schema = {
+          ...primary.schema,
+          required: [...new Set([...(primary.schema.required || []), ...alsoRequired])].sort(),
+        };
+      }
+    }
 
     if (upload) {
       const fileSchema = upload.multiple
@@ -481,6 +523,7 @@ function main() {
   console.log(`With a scope from Core:        ${report.operations - report.operationsWithoutScope.length}`);
   console.log(`Body fields from the handler:  ${report.requestSchemaFromCoreHandler.length}`);
   console.log(`Multipart upload endpoints:    ${report.multipartEndpoints.length}`);
+  console.log(`Observed response shapes:      ${report.observedResponses.length}`);
   console.log(`Still needing a request schema:${String(report.needsManualRequestSchema.length).padStart(4)}`);
   console.log(`Endpoints shared by tools:     ${report.sharedEndpoints.length}`);
   console.log(`Unmatched tool calls:          ${report.unmatchedToolCalls.length}`);

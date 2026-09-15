@@ -10,6 +10,7 @@
     "audit:core-routes": "node scripts/audit-core-routes.mjs",
     "generate:openapi": "npm run build && node scripts/generate-openapi.mjs",
     "verify:spec-fields": "node scripts/verify-spec-fields.mjs",
+    "capture:responses": "node scripts/capture-responses/run.mjs",
     "test": "npm run build && node --test tests/*.test.mjs",
     "test:agent-harness": "npm run build && node --test tests/agent-harness.test.mjs"
   },
