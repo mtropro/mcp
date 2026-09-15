@@ -355,7 +355,8 @@ function main() {
       if (recovered) {
         primary.schema = recovered;
         report.requestSchemaFromCoreHandler.push({ endpoint: key, tool: primary.tool.name });
-      } else {
+      } else if (method !== "get") {
+        // A GET with nothing to describe has no request body to miss.
         report.needsManualRequestSchema.push({ endpoint: key, tool: primary.tool.name });
       }
     }
