@@ -7,7 +7,7 @@ export function registerGuestTools(server: McpServer, client: ApiClient) {
     "guests_search",
     "Search for guests by name, email, or other criteria. Returns matching guest profiles.",
     {
-      query: z.string().optional().describe("Search query (name or email)"),
+      search: z.string().optional().describe("Search term matched against guest name, surname, and email. Omit to list every guest."),
     },
     async (params) => {
       try {

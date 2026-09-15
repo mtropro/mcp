@@ -8,6 +8,8 @@
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "audit:core-routes": "node scripts/audit-core-routes.mjs",
+    "generate:openapi": "npm run build && node scripts/generate-openapi.mjs",
+    "verify:spec-fields": "node scripts/verify-spec-fields.mjs",
     "test": "npm run build && node --test tests/*.test.mjs",
     "test:agent-harness": "npm run build && node --test tests/agent-harness.test.mjs"
   },
@@ -20,7 +22,8 @@
   "devDependencies": {
     "@types/node": "^22.10.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "zod-to-json-schema": "^3.25.2"
   },
   "pnpm": {
     "overrides": {

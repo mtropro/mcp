@@ -53,23 +53,25 @@ export function registerBookingTools(server: McpServer, client: ApiClient) {
 
   server.tool(
     "bookings_create",
-    "Create a new booking. Required: propertyId, guestId, startDate (timestamp ms), endDate (timestamp ms), rate (per day). Optional: source, status, notes, travelers, guests (adults/children/infants), pets, customFields, templateId.",
+    "Create a new booking. Required: propertyId, startDate (timestamp ms), endDate (timestamp ms). The primary guest is identified by guestEmail: Core finds the matching guest or creates one from guestName, guestSurname and guestMobile.",
     {
       propertyId: z.string().describe("Property ID for the booking"),
-      guestId: z.string().describe("Guest ID (main booking owner)"),
       startDate: z.number().describe("Start date as millisecond timestamp"),
       endDate: z.number().describe("End date as millisecond timestamp"),
-      rate: z.number().describe("Rate per day"),
+      guestEmail: z.string().optional().describe("Primary guest email. Core matches an existing guest on this address or creates one."),
+      guestName: z.string().optional().describe("Primary guest first name, used when the guest has to be created"),
+      guestSurname: z.string().optional().describe("Primary guest surname, used when the guest has to be created"),
+      guestMobile: z.string().optional().describe("Primary guest mobile number in E.164 format"),
+      rate: z.number().optional().describe("Rate per day"),
       source: z.string().optional().describe("Booking source"),
       status: z.string().optional().describe("Booking status: confirmed, pending, cancelled"),
       notes: z.string().optional().describe("Booking notes"),
-      travelers: z.number().optional().describe("Number of travelers"),
-      guests: z.object({
-        adults: z.number().optional(),
-        children: z.number().optional(),
-        infants: z.number().optional(),
-      }).optional().describe("Guest breakdown"),
+      leadId: z.string().optional().describe("Lead this booking was converted from"),
       templateId: z.string().optional().describe("Lease template ID"),
+      customFields: z.array(z.object({
+        fieldName: z.string(),
+        value: z.string(),
+      })).optional().describe("Custom field values for the booking"),
     },
     async (params) => {
       try {
@@ -236,15 +238,21 @@ export function registerBookingTools(server: McpServer, client: ApiClient) {
 
   server.tool(
     "bookings_set_primary_guest",
-    "Set the primary guest for a booking. This writes account data and should require owner confirmation when used by an agent.",
+    "Set the primary guest for a booking that does not have one yet. This writes account data and should require owner confirmation when used by an agent.",
     {
       bookingRef: z.string().describe("Simple booking ref returned by bookings_list, e.g. B001. Required for writes."),
-      guestId: z.string().describe("The guest ID to set as primary."),
+      guestEmail: z.string().describe("Email of the guest to set as primary. Core matches an existing guest on this address or creates one."),
+      guestName: z.string().optional().describe("Guest first name, used when the guest has to be created"),
+      guestSurname: z.string().optional().describe("Guest surname, used when the guest has to be created"),
     },
-    async ({ bookingRef, guestId }) => {
+    async ({ bookingRef, guestEmail, guestName, guestSurname }) => {
       try {
         const resolvedBookingId = resolveBookingWriteId(bookingRef);
-        const data = await client.post(`/bookings/set-primary-guest/${resolvedBookingId}`, { guestId });
+        const data = await client.post(`/bookings/set-primary-guest/${resolvedBookingId}`, {
+          guestEmail,
+          guestName,
+          guestSurname,
+        });
         return {
           content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
         };
