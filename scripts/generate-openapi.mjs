@@ -14,6 +14,8 @@ import {
   expandEnumPaths,
 } from "./lib/core-routes.mjs";
 import { readRouteScopes } from "./lib/core-scopes.mjs";
+import { readRouteBodyFields } from "./lib/core-body-fields.mjs";
+import { readUploadRoutes } from "./lib/core-uploads.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const coreAppPath = process.env.CORE_APP_PATH || resolve(root, "../core/app.ts");
@@ -116,6 +118,32 @@ function isOpaqueSchema(schema) {
 }
 
 /**
+ * Passthrough tools declare their body as an untyped record, which tells an
+ * integrator nothing about what to send. The Core handler does know: the fields
+ * it reads off `req.body` are the real contract. Types and descriptions are not
+ * recoverable this way, but field names are the part a caller cannot guess.
+ */
+function schemaFromCoreFields(route, pathParameterNames) {
+  if (!route || route.fields.size === 0) return null;
+  const names = [...route.fields]
+    .filter((field) => !pathParameterNames.includes(field))
+    .sort();
+  if (names.length === 0) return null;
+  return {
+    type: "object",
+    description: route.forwards
+      ? "Field names are taken from the Core handler. It also passes the body on " +
+        "to internal helpers, so it may accept fields beyond those listed here. " +
+        "Types are not yet documented."
+      : "Field names are taken from the Core handler, which reads exactly these. " +
+        "Types and which of them are required are not yet documented.",
+    properties: Object.fromEntries(names.map((name) => [name, {}])),
+    additionalProperties: true,
+    "x-mtro-fields-source": "core-handler",
+  };
+}
+
+/**
  * The literal that an expanded enum path contributed, used to keep one
  * operationId per endpoint when a single tool covers several routes.
  */
@@ -181,6 +209,8 @@ function buildRequestSchema(call, shape, reservedKeys, report, toolName) {
 function main() {
   const coreRoutes = readCoreRoutes(coreAppPath);
   const { scopes, accessActions } = readRouteScopes(coreAppPath, accessControlPath);
+  const bodyFields = readRouteBodyFields(coreAppPath);
+  const uploadRoutes = readUploadRoutes(coreAppPath);
   const recorded = recordMcpTools();
   const extracted = extractToolCalls(resolve(root, "src/tools"));
 
@@ -189,6 +219,8 @@ function main() {
     operations: 0,
     unmatchedToolCalls: [],
     sharedEndpoints: [],
+    multipartEndpoints: [],
+    requestSchemaFromCoreHandler: [],
     needsManualRequestSchema: [],
     needsManualPayloadMapping: [],
     operationsWithoutScope: [],
@@ -297,8 +329,18 @@ function main() {
 
     const routeScopes = scopes.get(key);
     if (!routeScopes) report.operationsWithoutScope.push({ endpoint: key, tool: primary.tool.name });
-    if (primary.schema && isOpaqueSchema(primary.schema)) {
-      report.needsManualRequestSchema.push({ endpoint: key, tool: primary.tool.name });
+
+    const upload = uploadRoutes.get(key);
+    if (upload) report.multipartEndpoints.push({ endpoint: key, field: upload.field });
+
+    if (!upload && primary.schema && isOpaqueSchema(primary.schema)) {
+      const recovered = schemaFromCoreFields(bodyFields.get(key), parameterNames);
+      if (recovered) {
+        primary.schema = recovered;
+        report.requestSchemaFromCoreHandler.push({ endpoint: key, tool: primary.tool.name });
+      } else {
+        report.needsManualRequestSchema.push({ endpoint: key, tool: primary.tool.name });
+      }
     }
 
     const operation = {
@@ -334,7 +376,23 @@ function main() {
     if (routeScopes) operation["x-mtro-scopes"] = routeScopes;
     operation["x-mtro-mcp-tools"] = built.map((candidate) => candidate.tool.name).sort();
 
-    if (primary.schema && !usesQuery) {
+    if (upload) {
+      const fileSchema = upload.multiple
+        ? { type: "array", items: { type: "string", format: "binary" }, maxItems: upload.maxCount || undefined }
+        : { type: "string", format: "binary" };
+      operation.requestBody = {
+        required: true,
+        content: {
+          "multipart/form-data": {
+            schema: {
+              type: "object",
+              properties: { [upload.field]: fileSchema },
+              required: [upload.field],
+            },
+          },
+        },
+      };
+    } else if (primary.schema && !usesQuery) {
       operation.requestBody = {
         required: !isOpaqueSchema(primary.schema),
         content: { "application/json": { schema: primary.schema } },
@@ -421,7 +479,9 @@ function main() {
   console.log(`Core routes:                   ${coreRoutes.length}`);
   console.log(`Documented operations:         ${report.operations}`);
   console.log(`With a scope from Core:        ${report.operations - report.operationsWithoutScope.length}`);
-  console.log(`Needing a request schema:      ${report.needsManualRequestSchema.length}`);
+  console.log(`Body fields from the handler:  ${report.requestSchemaFromCoreHandler.length}`);
+  console.log(`Multipart upload endpoints:    ${report.multipartEndpoints.length}`);
+  console.log(`Still needing a request schema:${String(report.needsManualRequestSchema.length).padStart(4)}`);
   console.log(`Endpoints shared by tools:     ${report.sharedEndpoints.length}`);
   console.log(`Unmatched tool calls:          ${report.unmatchedToolCalls.length}`);
   console.log(`Spec:   ${outputPath}`);
