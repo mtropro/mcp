@@ -1,6 +1,7 @@
 {
   "name": "@mtropro/mcp",
   "version": "1.0.0",
+  "private": true,
   "description": "Model Context Protocol server for MTRO PRO. Lets AI assistants work with properties, bookings, guests, vendors, leads and tasks in natural language.",
   "license": "MIT",
   "type": "module",
@@ -14,9 +15,6 @@
   ],
   "engines": {
     "node": ">=20"
-  },
-  "publishConfig": {
-    "access": "public"
   },
   "repository": {
     "type": "git",
@@ -36,7 +34,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "prepublishOnly": "npm run build",
+    "prepare": "npm run build",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "audit:core-routes": "node scripts/audit-core-routes.mjs",

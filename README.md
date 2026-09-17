@@ -10,11 +10,15 @@ Authorization: Bearer <MTROPRO_API_KEY>
 
 ## Install
 
+This server is open source under the MIT license. Run it straight from the
+repository, pinned to a release tag:
+
 ```bash
-npx -y @mtropro/mcp
+npx -y github:mtropro/mcp#v1.0.0
 ```
 
-Requires Node.js 20 or newer.
+Requires Node.js 20 or newer. The first run clones and compiles the server, which
+takes a few seconds; npm caches the result afterwards.
 
 Add the server to Claude Code (`~/.claude/settings.json` or a project `.claude/settings.json`):
 
@@ -23,7 +27,7 @@ Add the server to Claude Code (`~/.claude/settings.json` or a project `.claude/s
   "mcpServers": {
     "mtropro": {
       "command": "npx",
-      "args": ["-y", "@mtropro/mcp"],
+      "args": ["-y", "github:mtropro/mcp#v1.0.0"],
       "env": {
         "MTROPRO_API_KEY": "your-api-key"
       }
@@ -32,7 +36,8 @@ Add the server to Claude Code (`~/.claude/settings.json` or a project `.claude/s
 }
 ```
 
-Claude Desktop takes the same block in `claude_desktop_config.json`.
+Claude Desktop takes the same block in `claude_desktop_config.json`. Drop the
+`#v1.0.0` suffix to follow `main` instead of a release.
 
 ## Run from source
 
