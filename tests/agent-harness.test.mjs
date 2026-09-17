@@ -168,5 +168,18 @@ test("MCP Core route audit has no missing endpoints", () => {
     cwd: rootDir,
     encoding: "utf8",
   });
-  assert.match(output, /Unmatched MCP Core calls: 0/);
+  assert.match(output, /Unmatched MCP Core calls:\s+0/);
+});
+
+test("every documented request field is one Core actually reads", () => {
+  const output = execFileSync(process.execPath, ["scripts/verify-spec-fields.mjs"], {
+    cwd: rootDir,
+    encoding: "utf8",
+  });
+  // A missing spec means the check could not run, which is reported as such
+  // rather than counted as a pass.
+  assert.match(
+    output,
+    /Operations documenting a field Core never reads: 0|skipping the field check/,
+  );
 });

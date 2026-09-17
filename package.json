@@ -1,13 +1,48 @@
 {
   "name": "@mtropro/mcp",
   "version": "1.0.0",
-  "private": true,
+  "description": "Model Context Protocol server for MTRO PRO. Lets AI assistants work with properties, bookings, guests, vendors, leads and tasks in natural language.",
+  "license": "MIT",
   "type": "module",
+  "bin": {
+    "mtropro-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mtropro/mcp.git"
+  },
+  "homepage": "https://docs.mtropro.app",
+  "bugs": {
+    "url": "https://github.com/mtropro/mcp/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "mtro",
+    "property-management",
+    "short-term-rental",
+    "ai-agents"
+  ],
   "scripts": {
     "build": "tsc",
+    "prepublishOnly": "npm run build",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "audit:core-routes": "node scripts/audit-core-routes.mjs",
+    "generate:openapi": "npm run build && node scripts/generate-openapi.mjs",
+    "verify:spec-fields": "node scripts/verify-spec-fields.mjs",
+    "capture:responses": "node scripts/capture-responses/run.mjs",
     "test": "npm run build && node --test tests/*.test.mjs",
     "test:agent-harness": "npm run build && node --test tests/agent-harness.test.mjs"
   },
@@ -20,7 +55,8 @@
   "devDependencies": {
     "@types/node": "^22.10.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "zod-to-json-schema": "^3.25.2"
   },
   "pnpm": {
     "overrides": {

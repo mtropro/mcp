@@ -147,11 +147,11 @@ export function registerPropertyTools(server: McpServer, client: ApiClient) {
     "Invite property owners to a property. This sends external communication and should require owner confirmation when used by an agent.",
     {
       propertyId: z.string().describe("The property ID"),
-      payload: z.record(z.any()).describe("Invitation body."),
+      entityIds: z.array(z.string()).describe("Entity ids to invite as owners of this property."),
     },
-    async ({ propertyId, payload }) => {
+    async ({ propertyId, entityIds }) => {
       try {
-        const data = await client.post(`/properties/invite-owners/${propertyId}`, payload);
+        const data = await client.post(`/properties/invite-owners/${propertyId}`, { entityIds });
         return {
           content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
         };

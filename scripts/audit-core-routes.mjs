@@ -1,74 +1,116 @@
-import { readFileSync, readdirSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { readFileSync, existsSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { registerAllTools } from "../dist/tools/index.js";
+import { extractToolCalls } from "./lib/tool-calls.mjs";
+import {
+  readCoreRoutes,
+  findCoreRoute,
+  toOpenApiPath,
+  interpolationExpressions,
+  expandEnumPaths,
+} from "./lib/core-routes.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const coreAppPath = process.env.CORE_APP_PATH || resolve(root, "../core/app.ts");
-const toolsDir = resolve(root, "src/tools");
+const specPath = process.env.OPENAPI_OUT || resolve(root, "../core/openapi/openapi.json");
 
-function listTsFiles(dir) {
-  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) return listTsFiles(full);
-    return entry.name.endsWith(".ts") ? [full] : [];
-  });
+function recordShapes() {
+  const shapes = new Map();
+  const server = { tool: (name, _description, shape) => shapes.set(name, shape || {}) };
+  const noop = async () => ({});
+  registerAllTools(server, { get: noop, post: noop, put: noop, patch: noop, delete: noop });
+  return shapes;
 }
 
-function normalize(path) {
-  return path.replace(/\$\{[^}]+}/g, ":param");
-}
-
-function parts(path) {
-  return path.split("/").filter(Boolean);
-}
-
-function routeMatches(call, route) {
-  const callParts = parts(call.path);
-  const routeParts = parts(route.path);
-  return (
-    call.method === route.method &&
-    callParts.length === routeParts.length &&
-    callParts.every((part, index) => {
-      const routePart = routeParts[index];
-      return part === routePart || part.startsWith(":") || routePart.startsWith(":");
-    })
-  );
-}
-
-const coreApp = readFileSync(coreAppPath, "utf8");
-const coreRoutes = [...coreApp.matchAll(/app\.(get|post|put|patch|delete)\(\s*"([^"]+)"/g)]
-  .map((match) => ({ method: match[1], path: match[2] }))
-  .sort((a, b) => `${a.method} ${a.path}`.localeCompare(`${b.method} ${b.path}`));
-
-const toolFiles = listTsFiles(toolsDir);
-const toolNames = [];
-const coreCalls = [];
-for (const file of toolFiles) {
-  const source = readFileSync(file, "utf8");
-  for (const match of source.matchAll(/server\.tool\(\s*"([^"]+)"/g)) {
-    toolNames.push(match[1]);
+function enumValues(zodType) {
+  const definition = zodType?._def;
+  if (!definition) return null;
+  if (definition.typeName === "ZodEnum") return definition.values;
+  if (definition.typeName === "ZodOptional" || definition.typeName === "ZodDefault") {
+    return enumValues(definition.innerType);
   }
-  for (const match of source.matchAll(/client\.(get|post|patch|delete)\((`([^`]+)`|"([^"]+)")/g)) {
-    coreCalls.push({
-      method: match[1],
-      path: normalize(match[3] || match[4]),
-      file: file.replace(`${root}/`, ""),
-    });
+  return null;
+}
+
+const coreRoutes = readCoreRoutes(coreAppPath);
+const shapes = recordShapes();
+const tools = extractToolCalls(resolve(root, "src/tools"));
+
+const unmatchedCalls = [];
+const reachedEndpoints = new Set();
+
+for (const tool of tools) {
+  const shape = shapes.get(tool.name) || {};
+  for (const call of tool.calls) {
+    if (!call.path) continue;
+    const candidates = expandEnumPaths(call.path, (expression) => enumValues(shape[expression]));
+    const matches = candidates
+      .map((candidate) => findCoreRoute(coreRoutes, call.method, candidate))
+      .filter(Boolean);
+    if (matches.length === 0) {
+      unmatchedCalls.push({ tool: tool.name, file: tool.file, method: call.method, path: call.path });
+      continue;
+    }
+    for (const route of matches) reachedEndpoints.add(`${route.method} ${route.path}`);
   }
 }
 
-const unmatchedCalls = coreCalls.filter((call) => !coreRoutes.some((route) => routeMatches(call, route)));
-const coveredRoutes = coreRoutes.filter((route) => coreCalls.some((call) => routeMatches(call, route)));
+console.log(`MCP tools:                          ${tools.length}`);
+console.log(`Core app routes:                    ${coreRoutes.length}`);
+console.log(`Core endpoints reached by MCP:      ${reachedEndpoints.size}`);
+console.log(`Unmatched MCP Core calls:           ${unmatchedCalls.length}`);
 
-console.log(`MCP tools: ${toolNames.length}`);
-console.log(`MCP Core calls: ${coreCalls.length}`);
-console.log(`Core app routes: ${coreRoutes.length}`);
-console.log(`Core routes directly covered by MCP calls: ${coveredRoutes.length}`);
-console.log(`Unmatched MCP Core calls: ${unmatchedCalls.length}`);
+let failed = false;
 
 if (unmatchedCalls.length > 0) {
+  failed = true;
+  console.error("\nMCP tools calling an endpoint that is not mounted in Core:");
   for (const call of unmatchedCalls) {
-    console.error(`- ${call.method.toUpperCase()} ${call.path} (${call.file})`);
+    console.error(`- ${call.method.toUpperCase()} ${call.path} (${call.tool}, ${call.file})`);
   }
-  process.exitCode = 1;
 }
+
+// The published spec must describe exactly the endpoints the MCP registry
+// reaches. Drift in either direction means the documentation no longer matches
+// what integrators can actually call.
+if (!existsSync(specPath)) {
+  // Absence is a setup condition, not a defect: the spec lives in the Core
+  // repository, which may be on a branch that does not carry it yet. Drift in
+  // a spec that IS present is a different matter and fails below.
+  console.log(`\nOpenAPI spec not found at ${specPath}; skipping the spec sync check.`);
+  console.log("Run `pnpm generate:openapi` to produce it.");
+} else {
+  const spec = JSON.parse(readFileSync(specPath, "utf8"));
+  const documented = new Set();
+  for (const [path, operations] of Object.entries(spec.paths || {})) {
+    for (const method of Object.keys(operations)) documented.add(`${method} ${path}`);
+  }
+  const reachedAsOpenApi = new Set(
+    [...reachedEndpoints].map((entry) => {
+      const [method, path] = entry.split(" ");
+      return `${method} ${toOpenApiPath(path)}`;
+    })
+  );
+
+  const missingFromSpec = [...reachedAsOpenApi].filter((entry) => !documented.has(entry)).sort();
+  const extraInSpec = [...documented].filter((entry) => !reachedAsOpenApi.has(entry)).sort();
+
+  console.log(`Endpoints documented in the spec:   ${documented.size}`);
+
+  if (missingFromSpec.length > 0) {
+    failed = true;
+    console.error("\nReached by an MCP tool but missing from the OpenAPI spec:");
+    for (const entry of missingFromSpec) console.error(`- ${entry}`);
+  }
+  if (extraInSpec.length > 0) {
+    failed = true;
+    console.error("\nDocumented in the OpenAPI spec but no longer reached by any MCP tool:");
+    for (const entry of extraInSpec) console.error(`- ${entry}`);
+  }
+  if (missingFromSpec.length === 0 && extraInSpec.length === 0) {
+    console.log("Spec is in sync with the MCP registry and the Core route table.");
+  }
+}
+
+if (failed) process.exitCode = 1;

@@ -8,7 +8,33 @@ The server calls MTRO Core with:
 Authorization: Bearer <MTROPRO_API_KEY>
 ```
 
-## Setup
+## Install
+
+```bash
+npx -y @mtropro/mcp
+```
+
+Requires Node.js 20 or newer.
+
+Add the server to Claude Code (`~/.claude/settings.json` or a project `.claude/settings.json`):
+
+```json
+{
+  "mcpServers": {
+    "mtropro": {
+      "command": "npx",
+      "args": ["-y", "@mtropro/mcp"],
+      "env": {
+        "MTROPRO_API_KEY": "your-api-key"
+      }
+    }
+  }
+}
+```
+
+Claude Desktop takes the same block in `claude_desktop_config.json`.
+
+## Run from source
 
 ### Install dependencies
 
