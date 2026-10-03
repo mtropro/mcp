@@ -57,3 +57,10 @@ fixtures through the API, and records the shape of every read endpoint's reply.
 - Do not commit `openapi/generation-report.json`; it is regenerated output.
 - `openapi/response-shapes.json` is committed, so the spec can be regenerated
   without running Core.
+
+## Lead domain (MTR-1357)
+
+- Lead tools use `GET|POST /leads`, `PATCH|DELETE /leads/:leadId`, and `POST /leads/update-stage`. Lists read `data.leads`.
+- Create and update tools accept an optional nonnegative Budget with at most two decimal places. Budget is separate from the monthly rate.
+- Legacy `/webhooks/...` lead paths are Core compatibility aliases only. Keep tools and generated documentation on the dedicated Lead API.
+- Generate OpenAPI and run route, field and runtime checks against the matching Core revision when changing this contract.
