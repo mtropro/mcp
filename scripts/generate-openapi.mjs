@@ -62,7 +62,7 @@ const TAG_DESCRIPTIONS = {
   Guests: "Guest records and their contact details.",
   "Import jobs": "Bulk imports, including Furnished Finder scraping runs.",
   Inventory: "Per-property inventory items and the shared catalog.",
-  Leads: "Inbound rental enquiries and their pipeline stage. Note that these endpoints are mounted under `/webhooks`, alongside unrelated provider callbacks.",
+  Leads: "Rental enquiries and their pipeline stage, managed through the dedicated `/leads` API.",
   "Message templates": "Reusable message bodies for conversations.",
   Notes: "Free-form notes attached to a lead or a booking.",
   Notifications: "In-app notifications and transactional email sends.",
