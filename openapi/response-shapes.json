@@ -3294,7 +3294,7 @@
       }
     }
   },
-  "get /webhooks/get/all": {
+  "get /leads": {
     "operationId": "leads_list",
     "schema": {
       "type": "object",
@@ -3305,7 +3305,7 @@
         "error": {
           "type": "boolean"
         },
-        "webhooks": {
+        "leads": {
           "type": "array",
           "items": {
             "type": "object",

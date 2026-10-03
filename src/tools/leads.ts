@@ -9,9 +9,9 @@ export function registerLeadTools(server: McpServer, client: ApiClient) {
     {},
     async () => {
       try {
-        const data = await client.get("/webhooks/get/all");
+        const data = await client.get("/leads");
         return {
-          content: [{ type: "text", text: JSON.stringify(data.webhooks || data.leads, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(data.leads, null, 2) }],
         };
       } catch (error) {
         return {
@@ -38,13 +38,14 @@ export function registerLeadTools(server: McpServer, client: ApiClient) {
       endDate: z.number().optional().describe("Desired end date as millisecond timestamp"),
       lengthOfStay: z.string().optional().describe("Desired length of stay"),
       numberOfTravelers: z.number().optional().describe("Number of travelers"),
+      budget: z.number().nonnegative().optional().describe("Guest budget in USD"),
       monthlyRate: z.number().optional().describe("Monthly rate the lead was quoted"),
       staffingCompany: z.string().optional().describe("Staffing or contracting company the lead works for"),
       petInformation: z.string().optional().describe("Pets travelling with the lead"),
     },
     async (params) => {
       try {
-        const data = await client.post("/webhooks/create-lead", params);
+        const data = await client.post("/leads", params);
         return {
           content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
         };
@@ -72,13 +73,14 @@ export function registerLeadTools(server: McpServer, client: ApiClient) {
       endDate: z.number().optional().describe("Updated end date as millisecond timestamp"),
       lengthOfStay: z.string().optional().describe("Updated length of stay"),
       numberOfTravelers: z.number().optional().describe("Updated number of travelers"),
+      budget: z.number().nonnegative().optional().describe("Guest budget in USD"),
       monthlyRate: z.number().optional().describe("Updated monthly rate"),
       staffingCompany: z.string().optional().describe("Updated staffing or contracting company"),
       petInformation: z.string().optional().describe("Updated pet information"),
     },
     async (params) => {
       try {
-        const data = await client.post("/webhooks/update-lead", params);
+        const data = await client.patch(`/leads/${params.leadId}`, params);
         return {
           content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
         };
@@ -100,7 +102,7 @@ export function registerLeadTools(server: McpServer, client: ApiClient) {
     },
     async (params) => {
       try {
-        const data = await client.post("/webhooks/update-stage", params);
+        const data = await client.post("/leads/update-stage", params);
         return {
           content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
         };
@@ -119,7 +121,7 @@ export function registerLeadTools(server: McpServer, client: ApiClient) {
     { leadId: z.string().describe("The lead ID to delete") },
     async ({ leadId }) => {
       try {
-        const data = await client.post("/webhooks/delete-lead", { leadId });
+        const data = await client.delete(`/leads/${leadId}`);
         return {
           content: [{ type: "text", text: JSON.stringify(data, null, 2) }],
         };

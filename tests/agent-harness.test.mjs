@@ -56,6 +56,33 @@ test("agent harness lists and calls MCP tools through stdio against mocked Core"
   }
 });
 
+test("lead tools use the dedicated API and carry Budget", async () => {
+  const harness = new AgentMcpHarness({ responseForRequest(request) {
+    return request.method === "GET" && request.path === "/leads"
+      ? { error: false, leads: [{ id: "lead_1", rawData: { parsedData: { budget: 2000 } } }] }
+      : { error: false, request };
+  } });
+  await harness.start();
+  try {
+    const leads = parseTextResult(await harness.callTool("leads_list"));
+    assert.equal(leads[0].rawData.parsedData.budget, 2000);
+    await harness.callTool("leads_create", { tenantName: "Budget Traveler", budget: 2500.5 });
+    assert.equal(harness.lastRequest().path, "/leads");
+    assert.equal(harness.lastRequest().body.budget, 2500.5);
+    await harness.callTool("leads_update", { leadId: "lead_1", budget: 3000 });
+    assert.equal(harness.lastRequest().method, "PATCH");
+    assert.equal(harness.lastRequest().path, "/leads/lead_1");
+    assert.equal(harness.lastRequest().body.budget, 3000);
+    await harness.callTool("leads_update_stage", { leadId: "lead_1", stageId: "stage_1" });
+    assert.equal(harness.lastRequest().path, "/leads/update-stage");
+    await harness.callTool("leads_delete", { leadId: "lead_1" });
+    assert.equal(harness.lastRequest().method, "DELETE");
+    assert.equal(harness.lastRequest().path, "/leads/lead_1");
+  } finally {
+    await harness.stop();
+  }
+});
+
 test("MCP list tools expose simple refs that write tools can resolve", async () => {
   const harness = new AgentMcpHarness({
     responseForRequest(request) {

@@ -242,7 +242,7 @@ const guest = await create("/guests/register", {
   mobile: "+14695550122",
 }, "guest");
 
-const lead = await create("/webhooks/create-lead", {
+const lead = await create("/leads", {
   tenantName: "Jordan Ellis",
   emailAddress: "jordan.ellis@example.com",
   phoneNumber: "+14695550122",
@@ -336,7 +336,7 @@ const resolvedBookingId = bookingId || (await firstId("/bookings/get/all", "book
 const resolvedTaskId = await firstId("/tasks/get/all", "tasks");
 const resolvedTemplateId = await firstId("/templates/get/all", "templates");
 const resolvedGuestId = await firstId("/guests/search", "guests", "POST", {});
-const resolvedLeadId = leadId || (await firstId("/webhooks/get/all", "webhooks"));
+const resolvedLeadId = leadId || (await firstId("/leads", "leads"));
 const resolvedConversationId = await firstId("/conversations/get", "conversations", "POST", {});
 
 // --- capture --------------------------------------------------------------
