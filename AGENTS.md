@@ -65,3 +65,9 @@ fixtures through the API, and records the shape of every read endpoint's reply.
 - Legacy `/webhooks/...` lead paths are Core compatibility aliases only. Keep tools and generated documentation on the dedicated Lead API.
 - Generate OpenAPI and run route, field and runtime checks against the matching Core revision when changing this contract.
 - MCP is also bundled in the production BRO image. Keep its reviewed dependency lockfile aligned with that release; install with scripts disabled, then run the explicit build and runtime checks. Dependency corrections for this release pin Axios 1.20.0 and the compatible patched HTTP/parser dependencies through `pnpm.overrides`.
+
+## BRO bounded Lead reads and delivery (MTR-1390)
+
+- `leads_list` uses compact `GET /leads/search`, preserves pagination, and supports inclusive calendar-date filters plus exact `leadId`. Follow every cursor before claiming completion; an empty page can be incomplete.
+- `conversations_send_message` accepts one exact Lead reference, resolves it under the current owner, and checks the confirmed email/phone before creating or sending to its conversation. Preserve the stable `clientMessageId` supplied by the runtime. Reject ambiguous recipient references.
+- Run the complete paired Core route/spec checks before release. Standalone checks exercise build and stdio behavior and explicitly skip those two checks when Core is absent. Publish external check results for the exact reviewed head when GitHub Actions is unavailable. Dependency changes require the supply-chain gate, disabled install scripts, explicit build, and the combined runtime browser journey.

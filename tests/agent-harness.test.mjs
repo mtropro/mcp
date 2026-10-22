@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { test } from "node:test";
@@ -58,14 +59,17 @@ test("agent harness lists and calls MCP tools through stdio against mocked Core"
 
 test("lead tools use the dedicated API and carry Budget", async () => {
   const harness = new AgentMcpHarness({ responseForRequest(request) {
-    return request.method === "GET" && request.path === "/leads"
-      ? { error: false, leads: [{ id: "lead_1", rawData: { parsedData: { budget: 2000 } } }] }
+    return request.method === "GET" && request.path === "/leads/search"
+      ? { error: false, leads: [{ id: "lead_1", budget: 2000 }], pagination: { hasMore: true, nextCursor: "next" } }
       : { error: false, request };
   } });
   await harness.start();
   try {
     const leads = parseTextResult(await harness.callTool("leads_list"));
-    assert.equal(leads[0].rawData.parsedData.budget, 2000);
+    assert.equal(leads.leads[0].budget, 2000);
+    assert.equal(leads.pagination.nextCursor, "next");
+    await harness.callTool("leads_list", { startDateTo: "2026-10-22", cursor: "next", limit: 20 });
+    assert.deepEqual(harness.lastRequest().searchParams, { startDateTo: "2026-10-22", cursor: "next", limit: "20" });
     await harness.callTool("leads_create", { tenantName: "Budget Traveler", budget: 2500.5 });
     assert.equal(harness.lastRequest().path, "/leads");
     assert.equal(harness.lastRequest().body.budget, 2500.5);
@@ -190,7 +194,7 @@ function assertToolFailureMentions(failure, pattern) {
   }
 }
 
-test("MCP Core route audit has no missing endpoints", () => {
+test("MCP Core route audit has no missing endpoints", { skip: !existsSync(process.env.CORE_APP_PATH || resolve(rootDir, "../core/app.ts")) ? "Requires the paired Core checkout; run before release." : false }, () => {
   const output = execFileSync(process.execPath, ["scripts/audit-core-routes.mjs"], {
     cwd: rootDir,
     encoding: "utf8",
@@ -198,7 +202,7 @@ test("MCP Core route audit has no missing endpoints", () => {
   assert.match(output, /Unmatched MCP Core calls:\s+0/);
 });
 
-test("every documented request field is one Core actually reads", () => {
+test("every documented request field is one Core actually reads", { skip: !existsSync(process.env.CORE_APP_PATH || resolve(rootDir, "../core/app.ts")) ? "Requires the paired Core checkout; run before release." : false }, () => {
   const output = execFileSync(process.execPath, ["scripts/verify-spec-fields.mjs"], {
     cwd: rootDir,
     encoding: "utf8",
@@ -209,4 +213,28 @@ test("every documented request field is one Core actually reads", () => {
     output,
     /Operations documenting a field Core never reads: 0|skipping the field check/,
   );
+});
+
+
+test("Lead send resolves the exact owned contact and refuses changed or ambiguous recipients", async () => {
+  const leadId = "aaaaaaaaaaaaaaaaaaaaaaaa";
+  const calls = [];
+  const harness = new AgentMcpHarness({ responseForRequest(request) {
+    calls.push(request);
+    if (request.path === "/leads/search") return { leads: [{ id: leadId, name: "Avery Birch", email: "robin+mtro-mcp-send@ambox.dev", phone: "" }] };
+    if (request.path === `/conversations/get/entity/${leadId}`) return { conversations: [] };
+    if (request.path === "/conversations/create") return { conversation: { id: "bbbbbbbbbbbbbbbbbbbbbbbb" } };
+    return { error: false, sent: true };
+  } });
+  await harness.start();
+  try {
+    const wrong = await captureToolFailure(harness.callTool("conversations_send_message", { leadId, recipientEmail: "robin+mtro-changed@ambox.dev", message: "Hello" }));
+    assertToolFailureMentions(wrong, /email changed/);
+    assert.equal(calls.some(call => call.path === "/conversations/send-message"), false);
+    const ambiguous = await captureToolFailure(harness.callTool("conversations_send_message", { leadId, conversationId: "other", message: "Hello" }));
+    assertToolFailureMentions(ambiguous, /exactly one/);
+    await harness.callTool("conversations_send_message", { leadId, recipientEmail: "robin+mtro-mcp-send@ambox.dev", message: "Hello", channel: "email" });
+    assert.equal(harness.lastRequest().path, "/conversations/send-message");
+    assert.deepEqual(harness.lastRequest().body, { conversationId: "bbbbbbbbbbbbbbbbbbbbbbbb", channel: "email", message: "Hello", expectedRecipientEmail: "robin+mtro-mcp-send@ambox.dev" });
+  } finally { await harness.stop(); }
 });
