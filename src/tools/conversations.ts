@@ -18,7 +18,8 @@ export function registerConversationTools(server: McpServer, client: ApiClient) 
             conversationScope: stringValue(payload?.conversationScope) || "guest",
           }));
         }
-        return ok(await client.post("/conversations/get", payload));
+        const data = await client.post<any>("/conversations/get", { ...payload, page: Math.max(1, Number(payload?.page) || 1), limit: Math.min(50, Math.max(1, Number(payload?.limit) || 20)) });
+        return ok({ ...data, conversations: (data.conversations || []).map(compactConversation) });
       } catch (error) {
         return fail(error);
       }
@@ -83,11 +84,17 @@ export function registerConversationTools(server: McpServer, client: ApiClient) 
       "Send a message through email or SMS. This sends external communication and should require owner confirmation when used by an agent.",
       "Required final Core payload is conversationId, channel, and message.",
       "Convenience: instead of conversationId, pass bookingRef or bookingId and the MCP will find or create the booking guest conversation first.",
+      "For an existing Lead, pass leadId from leads_list to find or create only that Lead's conversation after confirmation.",
     ].join(" "),
     {
+      clientMessageId: z.string().max(120).optional().describe("Stable reference for this confirmed send; repeated calls must reuse it."),
       conversationId: z.string().optional().describe("Conversation ID. Preferred when already known."),
       bookingRef: z.string().optional().describe("Simple booking ref returned by bookings_list, e.g. B017."),
       bookingId: z.string().optional().describe("Raw booking ObjectId. Use only if already known."),
+      recipientEmail: z.string().email().optional().describe("The exact Lead email shown in the owner confirmation. A changed address requires a fresh confirmation."),
+      recipientPhone: z.string().max(64).optional().describe("The exact Lead phone shown in the owner confirmation."),
+      recipientName: z.string().max(160).optional().describe("Verified Lead name for the owner confirmation."),
+      leadId: z.string().optional().describe("Exact Lead ID from leads_list. Do not use a name or another entity's ID."),
       channel: z.enum(["email", "sms"]).optional().describe("External channel. Use email unless the owner requested SMS."),
       message: z.string().optional().describe("Message body to send."),
       attachments: z.array(z.record(z.any())).optional().describe("Optional uploaded conversation attachments."),
@@ -193,9 +200,14 @@ export function registerConversationTools(server: McpServer, client: ApiClient) 
 }
 
 type SendMessageInput = {
+  clientMessageId?: string;
   conversationId?: string;
   bookingRef?: string;
   bookingId?: string;
+  leadId?: string;
+  recipientEmail?: string;
+  recipientName?: string;
+  recipientPhone?: string;
   channel?: "email" | "sms";
   message?: string;
   attachments?: Record<string, any>[];
@@ -210,14 +222,16 @@ async function normalizeSendMessagePayload(client: ApiClient, input: SendMessage
     stringValue(raw.body) ||
     stringValue(raw.text);
   const channel = stringValue(input.channel) || stringValue(raw.channel) || "email";
+  if ((input.leadId || raw.leadId) && (input.conversationId || raw.conversationId || input.bookingRef || input.bookingId || raw.bookingRef || raw.bookingId)) throw new Error("Choose exactly one Lead, booking or conversation before sending.");
   const attachments = input.attachments || (Array.isArray(raw.attachments) ? raw.attachments : undefined);
   const conversationId =
     stringValue(input.conversationId) ||
     stringValue(raw.conversationId) ||
+    await resolveLeadConversationId(client, input, raw) ||
     await resolveBookingConversationId(client, input, raw);
 
   if (!conversationId) {
-    throw new Error("conversationId is required unless bookingRef or bookingId is provided.");
+    throw new Error("conversationId is required unless leadId, bookingRef or bookingId is provided.");
   }
   if (!message) {
     throw new Error("message is required.");
@@ -230,8 +244,35 @@ async function normalizeSendMessagePayload(client: ApiClient, input: SendMessage
     conversationId,
     channel,
     message,
+    ...((input.clientMessageId || raw.clientMessageId) ? { clientMessageId: input.clientMessageId || raw.clientMessageId } : {}),
+    ...((input.recipientEmail || raw.recipientEmail) ? { expectedRecipientEmail: input.recipientEmail || raw.recipientEmail } : {}),
+    ...((input.recipientPhone || raw.recipientPhone) ? { expectedRecipientPhone: input.recipientPhone || raw.recipientPhone } : {}),
     ...(attachments ? { attachments } : {}),
   };
+}
+
+async function resolveLeadConversationId(client: ApiClient, input: SendMessageInput, raw: Record<string, any>): Promise<string | undefined> {
+  const leadId = stringValue(input.leadId) || stringValue(raw.leadId);
+  if (!leadId) return undefined;
+  if (!/^[a-f0-9]{24}$/i.test(leadId)) throw new Error("Use the exact Lead ID from a current search.");
+  const checked = await client.get<any>("/leads/search", { leadId, includeClosed: true, limit: 1 });
+  const lead = checked?.leads?.find((row: any) => row.id === leadId);
+  if (!lead) throw new Error("The selected Lead is no longer available to this owner.");
+  const expectedEmail = stringValue(input.recipientEmail) || stringValue(raw.recipientEmail);
+  const channel = stringValue(input.channel) || stringValue(raw.channel) || "email";
+  const expectedPhone = stringValue(input.recipientPhone) || stringValue(raw.recipientPhone);
+  if (channel === "sms" && expectedPhone && String(lead.phone).replace(/\D/g, "") !== expectedPhone.replace(/\D/g, "")) throw new Error("The Lead phone changed. Review it and confirm again before sending.");
+  if (channel === "email" && expectedEmail && String(lead.email).trim().toLowerCase() !== expectedEmail.toLowerCase()) throw new Error("The Lead email changed. Review the new address and confirm again before sending.");
+  const data = await client.get<any>(`/conversations/get/entity/${leadId}`, { entityType: "lead" });
+  const existing = data?.conversations?.find((conversation: any) => conversation.entityType === "lead" && conversation.entityId === leadId);
+  if (existing?.id) return existing.id;
+  const created = await client.post<any>("/conversations/create", { entityId: leadId, entityType: "lead", subject: "Lead follow-up" });
+  if (!created?.conversation?.id) throw new Error("Could not open the selected Lead's conversation.");
+  return created.conversation.id;
+}
+
+function compactConversation(row: any) {
+  return { id: row.id, entityId: row.entityId, entityType: row.entityType, contactName: row.contactName, contactEmail: row.contactEmail, contactPhone: row.contactPhone, subject: typeof row.subject === "string" ? row.subject.slice(0, 200) : row.subject, status: row.status, lastMessageAt: row.lastMessageAt, messageCount: row.messageCount, externalReplyUrl: row.externalReplyUrl };
 }
 
 async function resolveBookingConversationId(

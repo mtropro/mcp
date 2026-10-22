@@ -5,13 +5,21 @@ import { ApiClient } from "../api-client.js";
 export function registerLeadTools(server: McpServer, client: ApiClient) {
   server.tool(
     "leads_list",
-    "List all leads/inquiries in the CRM pipeline.",
-    {},
-    async () => {
+    "Search compact Lead records for the current owner. Date bounds are inclusive move-in calendar dates (YYYY-MM-DD). Closed/converted leads are excluded unless includeClosed is true. Follow pagination.nextCursor with the same filters until hasMore is false; an empty page can still have more records. Do not infer a complete count from one page.",
+    {
+      leadId: z.string().regex(/^[a-f0-9]{24}$/i).optional().describe("Read exactly one Lead from a previous search."),
+      startDateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("Inclusive earliest desired move-in date."),
+      startDateTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().describe("Inclusive latest desired move-in date."),
+      includeClosed: z.boolean().optional().describe("Include converted/lost/closed leads only when requested."),
+      search: z.string().max(100).optional().describe("Literal name, email or destination filter."),
+      cursor: z.string().max(400).optional().describe("Exact nextCursor from the previous page, with unchanged filters."),
+      limit: z.number().int().min(1).max(50).optional().describe("Maximum matching leads in this page; defaults to 40."),
+    },
+    async (params) => {
       try {
-        const data = await client.get("/leads");
+        const data = await client.get("/leads/search", params);
         return {
-          content: [{ type: "text", text: JSON.stringify(data.leads, null, 2) }],
+          content: [{ type: "text", text: JSON.stringify(data) }],
         };
       } catch (error) {
         return {
