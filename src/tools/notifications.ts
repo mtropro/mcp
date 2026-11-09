@@ -105,7 +105,7 @@ export function registerNotificationTools(server: McpServer, client: ApiClient) 
   server.tool(
     "notifications_create",
     "Create an in-app notification. This writes account data and should require owner confirmation when used by an agent.",
-    { payload: z.record(z.any()).describe("Core /notifications/create request body.") },
+    { payload: z.record(z.string(), z.any()).describe("Core /notifications/create request body.") },
     async ({ payload }) => {
       try {
         const data = await client.post("/notifications/create", payload);
@@ -124,7 +124,7 @@ export function registerNotificationTools(server: McpServer, client: ApiClient) 
   server.tool(
     "notifications_send_email",
     "Send an email with notification context. This sends external communication and should require owner confirmation when used by an agent.",
-    { payload: z.record(z.any()).describe("Core /notifications/send-email request body.") },
+    { payload: z.record(z.string(), z.any()).describe("Core /notifications/send-email request body.") },
     async ({ payload }) => {
       try {
         const data = await client.post("/notifications/send-email", payload);

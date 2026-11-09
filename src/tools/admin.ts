@@ -33,7 +33,7 @@ export function registerAdminUtilityTools(server: McpServer, client: ApiClient) 
   server.tool(
     "api_keys_revoke",
     "Revoke an API key. This is security-sensitive and should require owner confirmation when used by an agent.",
-    { payload: z.record(z.any()).describe("Core /api-keys/revoke request body.") },
+    { payload: z.record(z.string(), z.any()).describe("Core /api-keys/revoke request body.") },
     async ({ payload }) => {
       try {
         return ok(await client.post("/api-keys/revoke", payload));
@@ -46,7 +46,7 @@ export function registerAdminUtilityTools(server: McpServer, client: ApiClient) 
   server.tool(
     "api_keys_delete",
     "Delete an API key. This is destructive and should require owner confirmation when used by an agent.",
-    { payload: z.record(z.any()).describe("Core /api-keys/delete request body.") },
+    { payload: z.record(z.string(), z.any()).describe("Core /api-keys/delete request body.") },
     async ({ payload }) => {
       try {
         return ok(await client.post("/api-keys/delete", payload));
@@ -85,7 +85,7 @@ export function registerAdminUtilityTools(server: McpServer, client: ApiClient) 
   server.tool(
     "fields_create",
     "Create a custom field. This writes account data and should require owner confirmation when used by an agent.",
-    { payload: z.record(z.any()).describe("Core /fields/create request body.") },
+    { payload: z.record(z.string(), z.any()).describe("Core /fields/create request body.") },
     async ({ payload }) => {
       try {
         return ok(await client.post("/fields/create", payload));
@@ -98,7 +98,7 @@ export function registerAdminUtilityTools(server: McpServer, client: ApiClient) 
   server.tool(
     "fields_update",
     "Update a custom field. This writes account data and should require owner confirmation when used by an agent.",
-    { payload: z.record(z.any()).describe("Core /fields/update request body.") },
+    { payload: z.record(z.string(), z.any()).describe("Core /fields/update request body.") },
     async ({ payload }) => {
       try {
         return ok(await client.post("/fields/update", payload));
@@ -111,7 +111,7 @@ export function registerAdminUtilityTools(server: McpServer, client: ApiClient) 
   server.tool(
     "fields_delete",
     "Delete a custom field. This is destructive and should require owner confirmation when used by an agent.",
-    { payload: z.record(z.any()).describe("Core /fields/delete request body.") },
+    { payload: z.record(z.string(), z.any()).describe("Core /fields/delete request body.") },
     async ({ payload }) => {
       try {
         return ok(await client.post("/fields/delete", payload));

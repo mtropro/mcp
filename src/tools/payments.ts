@@ -23,7 +23,7 @@ export function registerPaymentTools(server: McpServer, client: ApiClient) {
   server.tool(
     "payments_create",
     "Create an online Stripe payment. This is externally visible and should require owner confirmation when used by an agent.",
-    { payload: z.record(z.any()).describe("Core /payments/create request body.") },
+    { payload: z.record(z.string(), z.any()).describe("Core /payments/create request body.") },
     async ({ payload }) => {
       try {
         return ok(await client.post("/payments/create", payload));
@@ -36,7 +36,7 @@ export function registerPaymentTools(server: McpServer, client: ApiClient) {
   server.tool(
     "payments_create_manual",
     "Create a manual payment record. This writes account data and should require owner confirmation when used by an agent.",
-    { payload: z.record(z.any()).describe("Core /payments/create-manual request body.") },
+    { payload: z.record(z.string(), z.any()).describe("Core /payments/create-manual request body.") },
     async ({ payload }) => {
       try {
         return ok(await client.post("/payments/create-manual", payload));
@@ -117,7 +117,7 @@ export function registerPaymentTools(server: McpServer, client: ApiClient) {
     {
       paymentId: z.string().optional().describe("Payment ObjectId. Prefer paymentRef when available."),
       paymentRef: z.string().optional().describe("Simple payment ref returned by payments_list, e.g. PAY001."),
-      payload: z.record(z.any()).describe("Core /payments/update/:id request body."),
+      payload: z.record(z.string(), z.any()).describe("Core /payments/update/:id request body."),
     },
     async ({ paymentId, paymentRef, payload }) => {
       try {
@@ -177,7 +177,7 @@ export function registerPaymentTools(server: McpServer, client: ApiClient) {
   server.tool(
     "payments_recurring_create",
     "Create a recurring payment group. This writes financial records and should require owner confirmation when used by an agent.",
-    { payload: z.record(z.any()).describe("Core /payments/recurring/create request body.") },
+    { payload: z.record(z.string(), z.any()).describe("Core /payments/recurring/create request body.") },
     async ({ payload }) => {
       try {
         return ok(await client.post("/payments/recurring/create", payload));
@@ -205,7 +205,7 @@ export function registerPaymentTools(server: McpServer, client: ApiClient) {
     "Reschedule a recurring payment group. This changes financial state and should require owner confirmation when used by an agent.",
     {
       groupId: z.string().describe("Recurring group ID."),
-      payload: z.record(z.any()).describe("Core /payments/recurring/reschedule/:groupId request body."),
+      payload: z.record(z.string(), z.any()).describe("Core /payments/recurring/reschedule/:groupId request body."),
     },
     async ({ groupId, payload }) => {
       try {
@@ -269,7 +269,7 @@ export function registerStripeAccountTools(server: McpServer, client: ApiClient)
   server.tool(
     "stripe_accounts_create",
     "Create a Stripe Connect account and onboarding link. This changes payout routing setup and should require owner confirmation when used by an agent.",
-    { payload: z.record(z.any()).describe("Body with label, paymentTypes, and linkedPropertyIds.") },
+    { payload: z.record(z.string(), z.any()).describe("Body with label, paymentTypes, and linkedPropertyIds.") },
     async ({ payload }) => {
       try {
         return ok(await client.post("/payments/stripe/accounts", payload));
@@ -349,7 +349,7 @@ export function registerStripeAccountTools(server: McpServer, client: ApiClient)
     "Update Stripe account label, payment type routing, linked properties, or property defaults. This changes routing and should require owner confirmation when used by an agent.",
     {
       accountId: z.string().describe("Stripe account document ID."),
-      payload: z.record(z.any()).describe("Core /payments/stripe/accounts/:id/update request body."),
+      payload: z.record(z.string(), z.any()).describe("Core /payments/stripe/accounts/:id/update request body."),
     },
     async ({ accountId, payload }) => {
       try {

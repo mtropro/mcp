@@ -33,7 +33,7 @@ export function registerMessageTemplateTools(server: McpServer, client: ApiClien
   server.tool(
     "message_templates_create",
     "Create a reusable message template. This writes account data and should require owner confirmation when used by an agent.",
-    { payload: z.record(z.any()).describe("Core /message-templates/create request body.") },
+    { payload: z.record(z.string(), z.any()).describe("Core /message-templates/create request body.") },
     async ({ payload }) => {
       try {
         return ok(await client.post("/message-templates/create", payload));
@@ -46,7 +46,7 @@ export function registerMessageTemplateTools(server: McpServer, client: ApiClien
   server.tool(
     "message_templates_update",
     "Update a reusable message template. This writes account data and should require owner confirmation when used by an agent.",
-    { payload: z.record(z.any()).describe("Core /message-templates/update request body.") },
+    { payload: z.record(z.string(), z.any()).describe("Core /message-templates/update request body.") },
     async ({ payload }) => {
       try {
         return ok(await client.post("/message-templates/update", payload));

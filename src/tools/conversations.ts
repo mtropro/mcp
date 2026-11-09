@@ -55,7 +55,7 @@ export function registerConversationTools(server: McpServer, client: ApiClient) 
   server.tool(
     "conversations_create",
     "Create a conversation. This may start guest-facing communication and should require owner confirmation when used by an agent.",
-    { payload: z.record(z.any()).describe("Core /conversations/create request body.") },
+    { payload: z.record(z.string(), z.any()).describe("Core /conversations/create request body.") },
     async ({ payload }) => {
       try {
         return ok(await client.post("/conversations/create", payload));
@@ -68,7 +68,7 @@ export function registerConversationTools(server: McpServer, client: ApiClient) 
   server.tool(
     "conversations_add_message",
     "Add an internal/in-app conversation message. External delivery should use conversations_send_message and require owner confirmation.",
-    { payload: z.record(z.any()).describe("Core /conversations/add-message request body.") },
+    { payload: z.record(z.string(), z.any()).describe("Core /conversations/add-message request body.") },
     async ({ payload }) => {
       try {
         return ok(await client.post("/conversations/add-message", payload));
@@ -97,8 +97,8 @@ export function registerConversationTools(server: McpServer, client: ApiClient) 
       leadId: z.string().optional().describe("Exact Lead ID from leads_list. Do not use a name or another entity's ID."),
       channel: z.enum(["email", "sms"]).optional().describe("External channel. Use email unless the owner requested SMS."),
       message: z.string().optional().describe("Message body to send."),
-      attachments: z.array(z.record(z.any())).optional().describe("Optional uploaded conversation attachments."),
-      payload: z.record(z.any()).optional().describe("Backward-compatible payload. May include conversationId, bookingRef, bookingId, channel, message, or attachments."),
+      attachments: z.array(z.record(z.string(), z.any())).optional().describe("Optional uploaded conversation attachments."),
+      payload: z.record(z.string(), z.any()).optional().describe("Backward-compatible payload. May include conversationId, bookingRef, bookingId, channel, message, or attachments."),
     },
     async (input) => {
       try {
@@ -113,7 +113,7 @@ export function registerConversationTools(server: McpServer, client: ApiClient) 
   server.tool(
     "conversations_update",
     "Update conversation metadata or status. This writes account data and should require owner confirmation when used by an agent.",
-    { payload: z.record(z.any()).describe("Core /conversations/update request body.") },
+    { payload: z.record(z.string(), z.any()).describe("Core /conversations/update request body.") },
     async ({ payload }) => {
       try {
         return ok(await client.post("/conversations/update", payload));
@@ -171,7 +171,7 @@ export function registerConversationTools(server: McpServer, client: ApiClient) 
     {
       conversationId: z.string().describe("Conversation ID."),
       messageId: z.string().describe("Message ID."),
-      payload: z.record(z.any()).describe("Message edit body."),
+      payload: z.record(z.string(), z.any()).describe("Message edit body."),
     },
     async ({ conversationId, messageId, payload }) => {
       try {

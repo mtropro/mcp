@@ -2,7 +2,7 @@ import { existsSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { z } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
+import { enumValues, jsonSchemaFor } from "./lib/zod-schemas.mjs";
 import { registerAllTools } from "../dist/tools/index.js";
 import { extractToolCalls } from "./lib/tool-calls.mjs";
 import {
@@ -90,22 +90,6 @@ function recordMcpTools() {
   const noop = async () => ({});
   registerAllTools(server, { get: noop, post: noop, put: noop, patch: noop, delete: noop });
   return tools;
-}
-
-function enumValues(zodType) {
-  const definition = zodType?._def;
-  if (!definition) return null;
-  if (definition.typeName === "ZodEnum") return definition.values;
-  if (definition.typeName === "ZodOptional" || definition.typeName === "ZodDefault") {
-    return enumValues(definition.innerType);
-  }
-  return null;
-}
-
-function jsonSchemaFor(zodType) {
-  const schema = zodToJsonSchema(zodType, { target: "openApi3", $refStrategy: "none" });
-  delete schema.$schema;
-  return schema;
 }
 
 function objectSchemaFrom(shape, omit = []) {

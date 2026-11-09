@@ -218,7 +218,7 @@ export function registerBookingTools(server: McpServer, client: ApiClient) {
     "Sign a booking/lease as owner. This is legally significant and should require owner confirmation when used by an agent.",
     {
       bookingRef: z.string().describe("Simple booking ref returned by bookings_list, e.g. B001. Required for writes."),
-      payload: z.record(z.any()).optional().describe("Optional signature payload."),
+      payload: z.record(z.string(), z.any()).optional().describe("Optional signature payload."),
     },
     async ({ bookingRef, payload }) => {
       try {
@@ -270,7 +270,7 @@ export function registerBookingTools(server: McpServer, client: ApiClient) {
     "Request a background check for a booking. This can trigger external workflow and should require owner confirmation when used by an agent.",
     {
       bookingRef: z.string().describe("Simple booking ref returned by bookings_list, e.g. B001. Required for writes."),
-      payload: z.record(z.any()).optional().describe("Optional background check request body."),
+      payload: z.record(z.string(), z.any()).optional().describe("Optional background check request body."),
     },
     async ({ bookingRef, payload }) => {
       try {
@@ -295,7 +295,7 @@ export function registerBookingTools(server: McpServer, client: ApiClient) {
       bookingRef: z.string().describe("Simple booking ref returned by bookings_list, e.g. B001. Required for writes."),
       approval: z.boolean().optional().describe("Set true to approve the background check, false to reject it."),
       approved: z.boolean().optional().describe("Backward-compatible alias for approval."),
-      payload: z.record(z.any()).optional().describe("Optional request body. Use approval, not approved, when possible."),
+      payload: z.record(z.string(), z.any()).optional().describe("Optional request body. Use approval, not approved, when possible."),
     },
     async ({ bookingRef, approval, approved, payload }) => {
       try {
@@ -329,7 +329,7 @@ export function registerBookingTools(server: McpServer, client: ApiClient) {
     "Mark lease preparation state for a booking. This writes account data and should require owner confirmation when used by an agent.",
     {
       bookingRef: z.string().describe("Simple booking ref returned by bookings_list, e.g. B001. Required for writes."),
-      payload: z.record(z.any()).optional().describe("Optional request body."),
+      payload: z.record(z.string(), z.any()).optional().describe("Optional request body."),
     },
     async ({ bookingRef, payload }) => {
       try {
@@ -352,7 +352,7 @@ export function registerBookingTools(server: McpServer, client: ApiClient) {
     "Update an owner block/blocked-dates booking. This writes calendar state and should require owner confirmation when used by an agent.",
     {
       bookingRef: z.string().describe("Simple booking ref returned by bookings_list, e.g. B001. Required for writes."),
-      payload: z.record(z.any()).describe("Updated block fields."),
+      payload: z.record(z.string(), z.any()).describe("Updated block fields."),
     },
     async ({ bookingRef, payload }) => {
       try {

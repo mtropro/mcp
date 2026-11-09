@@ -71,3 +71,9 @@ fixtures through the API, and records the shape of every read endpoint's reply.
 - `leads_list` uses compact `GET /leads/search`, preserves pagination, and supports inclusive calendar-date filters plus exact `leadId`. Follow every cursor before claiming completion; an empty page can be incomplete.
 - `conversations_send_message` accepts one exact Lead reference, resolves it under the current owner, and checks the confirmed email/phone before creating or sending to its conversation. Preserve the stable `clientMessageId` supplied by the runtime. Reject ambiguous recipient references.
 - Run the complete paired Core route/spec checks before release. Standalone checks exercise build and stdio behavior and explicitly skip those two checks when Core is absent. Publish external check results for the exact reviewed head when GitHub Actions is unavailable. Dependency changes require the supply-chain gate, disabled install scripts, explicit build, and the combined runtime browser journey.
+
+## Reviewed BRO dependency compatibility (MTR-1447)
+
+- The bundled runtime uses pinned Zod 4.6.7 and patched HTTP/parser dependencies. Keep the dependency review gate and script-disabled install before explicit build/runtime verification.
+- Record schemas specify both string keys and value schemas. OpenAPI generation and route auditing share public Zod enum/schema helpers in `scripts/lib/zod-schemas.mjs`; do not inspect Zod 3 private definitions. Preserve optional/default enum expansion and request-field requiredness.
+- `tests/zod-schema-compat.test.mjs` protects request bounds, descriptions, records and enum expansion. Regenerate the sibling Core spec and run the complete paired route/field/stdio checks after schema changes.

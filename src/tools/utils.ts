@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-export const anyPayload = z.record(z.any()).optional().describe("Optional request body passed to MTRO Core.");
-export const anyQuery = z.record(z.any()).optional().describe("Optional query parameters passed to MTRO Core.");
+export const anyPayload = z.record(z.string(), z.any()).optional().describe("Optional request body passed to MTRO Core.");
+export const anyQuery = z.record(z.string(), z.any()).optional().describe("Optional query parameters passed to MTRO Core.");
 
 export function ok(data: unknown) {
   return {

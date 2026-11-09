@@ -33,7 +33,7 @@ export function registerReportWidgetTools(server: McpServer, client: ApiClient) 
   server.tool(
     "report_widgets_data",
     "Run a report widget and return its data.",
-    { payload: z.record(z.any()).describe("Core /report-widgets/data request body.") },
+    { payload: z.record(z.string(), z.any()).describe("Core /report-widgets/data request body.") },
     async ({ payload }) => {
       try {
         return ok(await client.post("/report-widgets/data", payload));
@@ -46,7 +46,7 @@ export function registerReportWidgetTools(server: McpServer, client: ApiClient) 
   server.tool(
     "report_widgets_ai_assist",
     "Ask Core's report widget assistant to help generate widget logic.",
-    { payload: z.record(z.any()).describe("Core /report-widgets/ai-assist request body.") },
+    { payload: z.record(z.string(), z.any()).describe("Core /report-widgets/ai-assist request body.") },
     async ({ payload }) => {
       try {
         return ok(await client.post("/report-widgets/ai-assist", payload));
@@ -59,7 +59,7 @@ export function registerReportWidgetTools(server: McpServer, client: ApiClient) 
   server.tool(
     "report_widgets_create",
     "Create a report widget. This writes dashboard configuration and should require owner confirmation when used by an agent.",
-    { payload: z.record(z.any()).describe("Core /report-widgets/create request body.") },
+    { payload: z.record(z.string(), z.any()).describe("Core /report-widgets/create request body.") },
     async ({ payload }) => {
       try {
         return ok(await client.post("/report-widgets/create", payload));
@@ -72,7 +72,7 @@ export function registerReportWidgetTools(server: McpServer, client: ApiClient) 
   server.tool(
     "report_widgets_update",
     "Update a report widget. This writes dashboard configuration and should require owner confirmation when used by an agent.",
-    { payload: z.record(z.any()).describe("Core /report-widgets/update request body.") },
+    { payload: z.record(z.string(), z.any()).describe("Core /report-widgets/update request body.") },
     async ({ payload }) => {
       try {
         return ok(await client.post("/report-widgets/update", payload));
