@@ -436,7 +436,7 @@ function main() {
     openapi: "3.0.3",
     info: {
       title: "MTRO PRO API",
-      version: "1.0.0",
+      version: "2.0.0",
       description: [
         "HTTP API for the MTRO PRO property management platform.",
         "",
