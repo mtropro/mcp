@@ -35,7 +35,7 @@ export function registerInventoryTools(server: McpServer, client: ApiClient) {
     "Create an inventory row for a property. This writes account data and should require owner confirmation when used by an agent.",
     {
       propertyId: z.string().describe("Property ID."),
-      payload: z.record(z.any()).describe("Inventory item fields."),
+      payload: z.record(z.string(), z.any()).describe("Inventory item fields."),
     },
     async ({ propertyId, payload }) => {
       try {
@@ -52,7 +52,7 @@ export function registerInventoryTools(server: McpServer, client: ApiClient) {
     {
       propertyId: z.string().describe("Property ID."),
       itemId: z.string().describe("Inventory item ID."),
-      payload: z.record(z.any()).describe("Inventory item fields to update."),
+      payload: z.record(z.string(), z.any()).describe("Inventory item fields to update."),
     },
     async ({ propertyId, itemId, payload }) => {
       try {

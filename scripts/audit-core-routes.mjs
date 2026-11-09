@@ -3,6 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { registerAllTools } from "../dist/tools/index.js";
 import { extractToolCalls } from "./lib/tool-calls.mjs";
+import { enumValues } from "./lib/zod-schemas.mjs";
 import {
   readCoreRoutes,
   findCoreRoute,
@@ -21,16 +22,6 @@ function recordShapes() {
   const noop = async () => ({});
   registerAllTools(server, { get: noop, post: noop, put: noop, patch: noop, delete: noop });
   return shapes;
-}
-
-function enumValues(zodType) {
-  const definition = zodType?._def;
-  if (!definition) return null;
-  if (definition.typeName === "ZodEnum") return definition.values;
-  if (definition.typeName === "ZodOptional" || definition.typeName === "ZodDefault") {
-    return enumValues(definition.innerType);
-  }
-  return null;
 }
 
 const coreRoutes = readCoreRoutes(coreAppPath);

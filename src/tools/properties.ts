@@ -70,7 +70,7 @@ export function registerPropertyTools(server: McpServer, client: ApiClient) {
       bathrooms: z.number().describe("Number of bathrooms"),
       squareFootage: z.number().describe("Square footage of the property"),
       description: z.string().optional().describe("Property description (max 500 chars)"),
-      amenities: z.record(z.boolean()).optional().describe("Amenities object, e.g. {wifi: true, pool: true}"),
+      amenities: z.record(z.string(), z.boolean()).optional().describe("Amenities object, e.g. {wifi: true, pool: true}"),
       rate: z.array(z.object({ month: z.number(), rate: z.number() })).optional().describe("Monthly rates array, e.g. [{month: 1, rate: 150}, {month: 6, rate: 200}]"),
       minimumDays: z.number().optional().describe("Minimum booking days (default 1)"),
       maxGuests: z.object({ adults: z.number(), children: z.number().optional(), infants: z.number().optional() }).optional().describe("Maximum guests allowed"),
@@ -102,7 +102,7 @@ export function registerPropertyTools(server: McpServer, client: ApiClient) {
       bathrooms: z.number().optional().describe("Number of bathrooms"),
       squareFootage: z.number().optional().describe("Square footage"),
       description: z.string().optional().describe("Property description"),
-      amenities: z.record(z.boolean()).optional().describe("Amenities to update"),
+      amenities: z.record(z.string(), z.boolean()).optional().describe("Amenities to update"),
       rate: z.array(z.object({ month: z.number(), rate: z.number() })).optional().describe("Monthly rates array"),
       minimumDays: z.number().optional().describe("Minimum booking days"),
       maxGuests: z.object({ adults: z.number().optional(), children: z.number().optional(), infants: z.number().optional() }).optional().describe("Maximum guests"),
@@ -186,7 +186,7 @@ export function registerPropertyTools(server: McpServer, client: ApiClient) {
   server.tool(
     "properties_calculate_rate",
     "Calculate a public quote/rate for a property and date range.",
-    { payload: z.record(z.any()).describe("Core /properties/public/calculate-rate request body.") },
+    { payload: z.record(z.string(), z.any()).describe("Core /properties/public/calculate-rate request body.") },
     async ({ payload }) => {
       try {
         const data = await client.post("/properties/public/calculate-rate", payload);
@@ -205,7 +205,7 @@ export function registerPropertyTools(server: McpServer, client: ApiClient) {
   server.tool(
     "properties_send_invitation",
     "Send a property invitation. This sends external communication and should require owner confirmation when used by an agent.",
-    { payload: z.record(z.any()).describe("Core /properties/send-invitation request body.") },
+    { payload: z.record(z.string(), z.any()).describe("Core /properties/send-invitation request body.") },
     async ({ payload }) => {
       try {
         const data = await client.post("/properties/send-invitation", payload);

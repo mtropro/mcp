@@ -59,7 +59,7 @@ export function registerSubscriptionTools(server: McpServer, client: ApiClient) 
   server.tool(
     "subscriptions_checkout",
     "Create a subscription checkout session. This starts billing flow and should require owner confirmation when used by an agent.",
-    { payload: z.record(z.any()).describe("Core /subscriptions/checkout request body.") },
+    { payload: z.record(z.string(), z.any()).describe("Core /subscriptions/checkout request body.") },
     async ({ payload }) => {
       try {
         return ok(await client.post("/subscriptions/checkout", payload));
@@ -72,7 +72,7 @@ export function registerSubscriptionTools(server: McpServer, client: ApiClient) 
   server.tool(
     "subscriptions_cancel",
     "Cancel the current subscription. This changes billing state and should require owner confirmation when used by an agent.",
-    { payload: z.record(z.any()).optional().describe("Optional cancellation request body.") },
+    { payload: z.record(z.string(), z.any()).optional().describe("Optional cancellation request body.") },
     async ({ payload }) => {
       try {
         return ok(await client.post("/subscriptions/cancel", payload));
@@ -85,7 +85,7 @@ export function registerSubscriptionTools(server: McpServer, client: ApiClient) 
   server.tool(
     "subscriptions_cancel_pending",
     "Cancel a pending subscription change. This changes billing state and should require owner confirmation when used by an agent.",
-    { payload: z.record(z.any()).optional().describe("Optional request body.") },
+    { payload: z.record(z.string(), z.any()).optional().describe("Optional request body.") },
     async ({ payload }) => {
       try {
         return ok(await client.post("/subscriptions/cancel-pending", payload));

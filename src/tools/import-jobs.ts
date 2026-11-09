@@ -33,7 +33,7 @@ export function registerImportJobTools(server: McpServer, client: ApiClient) {
   server.tool(
     "import_jobs_create",
     "Create an async import job. This writes account data and should require owner confirmation when used by an agent.",
-    { payload: z.record(z.any()).describe("Core /import-jobs request body.") },
+    { payload: z.record(z.string(), z.any()).describe("Core /import-jobs request body.") },
     async ({ payload }) => {
       try {
         return ok(await client.post("/import-jobs", payload));
@@ -72,7 +72,7 @@ export function registerImportJobTools(server: McpServer, client: ApiClient) {
   server.tool(
     "ff_import_scrape",
     "Start a Furnished Finder scrape through the Core proxy. This can create import data and should require owner confirmation when used by an agent.",
-    { payload: z.record(z.any()).describe("Core /ff-import/scrape request body.") },
+    { payload: z.record(z.string(), z.any()).describe("Core /ff-import/scrape request body.") },
     async ({ payload }) => {
       try {
         return ok(await client.post("/ff-import/scrape", payload));
@@ -85,7 +85,7 @@ export function registerImportJobTools(server: McpServer, client: ApiClient) {
   server.tool(
     "ff_import_upload_images",
     "Upload Furnished Finder scraped images through the Core proxy. This writes media and should require owner confirmation when used by an agent.",
-    { payload: z.record(z.any()).describe("Core /ff-import/upload-images request body.") },
+    { payload: z.record(z.string(), z.any()).describe("Core /ff-import/upload-images request body.") },
     async ({ payload }) => {
       try {
         return ok(await client.post("/ff-import/upload-images", payload));

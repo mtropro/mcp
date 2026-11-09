@@ -59,7 +59,7 @@ export function registerPollTools(server: McpServer, client: ApiClient) {
   server.tool(
     "polls_vote",
     "Vote on a poll. This writes account data and should require owner confirmation when used by an agent.",
-    { payload: z.record(z.any()).describe("Core /polls/vote request body.") },
+    { payload: z.record(z.string(), z.any()).describe("Core /polls/vote request body.") },
     async ({ payload }) => {
       try {
         return ok(await client.post("/polls/vote", payload));
