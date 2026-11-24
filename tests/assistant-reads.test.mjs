@@ -114,3 +114,34 @@ test("leads_count stays out of the registry: Core serves it to platform admins o
   const { tools } = harness(() => ({}));
   assert.equal(tools.has("leads_count"), false);
 });
+
+test("payments_list preserves the payment reference and reports money and collection state separately", async () => {
+  const payment = {
+    id: "P1", amount: 100, guestChargeAmount: 125, currency: "usd", status: "pending",
+    displayState: "processing", displayReason: "ach_processing", canPay: false,
+    collection: { mode: "manual", scheduledFor: null }, dueDate: null,
+  };
+  const { tools } = harness(() => ({ payments: [payment] }));
+  const result = JSON.parse((await tools.get("payments_list")({})).content[0].text).payments[0];
+  assert.equal(result.amountFormatted, "$1.00");
+  assert.equal(result.guestChargeAmountFormatted, "$1.25");
+  assert.equal(result.amountCents, 100);
+  assert.equal(result.amount, 100); // Existing MCP consumers read this field in cents.
+  assert.equal(result.paymentRef, "PAY001");
+  for (const key of ["status", "displayState", "displayReason", "canPay", "collection", "dueDate"])
+    assert.deepEqual(result[key], payment[key]);
+});
+
+test("recurring installments and received totals inherit currency without changing counts or percentages", async () => {
+  const { tools } = harness(() => ({ groups: [{
+    amount: 100, currency: "eur", totalPaid: 0, paidCount: 0, platformFeePercent: 2.9,
+    payments: [{ amount: 100 }, { amount: null }],
+  }] }));
+  const reply = await tools.get("payments_recurring_list")({});
+  const [group] = JSON.parse(reply.content[0].text).groups;
+  assert.equal(group.payments[0].amountFormatted, "€1.00");
+  assert.equal(group.payments[1].amountFormatted, undefined);
+  assert.equal(group.totalPaidFormatted, "€0.00");
+  assert.equal(group.paidCount, 0);
+  assert.equal(group.platformFeePercent, 2.9);
+});

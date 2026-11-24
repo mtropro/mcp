@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ApiClient } from "../api-client.js";
-import { anyPayload, anyQuery, fail, ok } from "./utils.js";
+import { anyPayload, anyQuery, fail, formatCents, ok } from "./utils.js";
 import { formatRef, rememberRef, resetRefs, resolveRef } from "./refs.js";
 
 export function registerPaymentTools(server: McpServer, client: ApiClient) {
@@ -167,7 +167,13 @@ export function registerPaymentTools(server: McpServer, client: ApiClient) {
     { query: anyQuery },
     async ({ query }) => {
       try {
-        return ok(await client.get("/payments/recurring/list", query));
+        const data = await client.get("/payments/recurring/list", query);
+        if (!Array.isArray(data.groups)) return ok(data);
+        return ok({ ...data, groups: data.groups.map((group: any) => ({
+          ...group,
+          ...paymentAmounts(group),
+          payments: group.payments?.map((row: any) => ({ ...row, ...paymentAmounts(row, group.currency) })),
+        })) });
       } catch (error) {
         return fail(error);
       }
@@ -221,6 +227,23 @@ function resolvePaymentId(paymentId: string | undefined, paymentRef: string | un
   return resolveRef("payment", paymentRef || paymentId, "paymentRef");
 }
 
+// Keep existing numeric fields for external clients and label the unit for assistants.
+function paymentAmounts(row: Record<string, unknown>, inheritedCurrency?: unknown) {
+  const currency = row.currency ?? inheritedCurrency;
+  const values: Record<string, unknown> = {};
+  for (const field of ["amount", "guestChargeAmount", "refundedAmount", "amountCaptured", "amountCapturable", "platformFeeAmount", "serviceFeeAmount", "stripeProcessingFeeAmount", "totalPaid"]) {
+    const cents = row[field];
+    if (cents === undefined) continue;
+    values[field] = cents;
+    if (typeof cents !== "number" || !Number.isSafeInteger(cents)) continue;
+    values[field + "Cents"] = cents;
+    if (typeof currency === "string" && /^[a-z]{3}$/i.test(currency)) {
+      values[field + "Formatted"] = formatCents(cents, currency);
+    }
+  }
+  return values;
+}
+
 function compactPayments(payments: any[]) {
   resetRefs("payment");
   return {
@@ -237,9 +260,15 @@ function compactPayments(payments: any[]) {
       return {
         paymentRef,
         idHint: id ? id.slice(-6) : undefined,
+        propertyName: payment.propertyName,
         status: payment.status,
+        displayState: payment.displayState,
+        displayReason: payment.displayReason,
+        canPay: payment.canPay,
+        collection: payment.collection,
         name: payment.name || payment.description || payment.paymentName,
-        amount: payment.amount,
+        ...paymentAmounts(payment),
+        currency: payment.currency,
         dueDate: payment.dueDate,
         bookingIdHint: payment.bookingId ? String(payment.bookingId).slice(-6) : undefined,
         guestIdHint: payment.guestId ? String(payment.guestId).slice(-6) : undefined,
