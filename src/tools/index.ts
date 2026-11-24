@@ -1,3 +1,4 @@
+import { registerScheduledMessageTools } from "./scheduled-messages.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { ApiClient } from "../api-client.js";
 import { registerUserTools } from "./users.js";
@@ -53,6 +54,7 @@ export function registerAllTools(server: McpServer, client: ApiClient) {
   registerStripeAccountTools(server, client);
   registerInventoryTools(server, client);
   registerConversationTools(server, client);
+  registerScheduledMessageTools(server, client);
   registerMessageTemplateTools(server, client);
   registerSubscriptionTools(server, client);
   registerPollTools(server, client);

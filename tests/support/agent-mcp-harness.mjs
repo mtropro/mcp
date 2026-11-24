@@ -1,3 +1,4 @@
+import { ElicitRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { createServer } from "node:http";
 import { resolve } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -5,6 +6,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 
 export class AgentMcpHarness {
   constructor(options = {}) {
+    this.elicit = options.elicit;
     this.rootDir = options.rootDir || resolve(import.meta.dirname, "../..");
     this.apiKey = options.apiKey || "mtro_test_key";
     this.requests = [];
@@ -65,7 +67,8 @@ export class AgentMcpHarness {
     this.transport.stderr?.on("data", (chunk) => {
       this.stderr += chunk.toString();
     });
-    this.client = new Client({ name: "mtro-agent-test", version: "1.0.0" });
+    this.client = new Client({ name: "mtro-agent-test", version: "1.0.0" }, this.elicit ? { capabilities: { elicitation: { form: {} } } } : undefined);
+    if (this.elicit) this.client.setRequestHandler(ElicitRequestSchema, this.elicit);
     await this.client.connect(this.transport);
   }
 

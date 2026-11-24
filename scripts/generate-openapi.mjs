@@ -32,6 +32,7 @@ const TAG_TITLES = {
   "bookings.ts": "Bookings",
   "co-hosting.ts": "Co-hosting",
   "campaigns.ts": "Campaigns",
+  "scheduled-messages.ts": "Conversations",
   "conversations.ts": "Conversations",
   "documents.ts": "Documents",
   "entities.ts": "Entities",
