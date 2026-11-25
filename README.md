@@ -92,7 +92,7 @@ Two options:
 `inventory_catalog` `inventory_list` `inventory_create_item` `inventory_update_item` `inventory_delete_item`
 
 ### Bookings
-`bookings_list` `bookings_get` `bookings_create` `bookings_update` `bookings_delete` `bookings_check_availability` `bookings_block_dates` `bookings_update_block_dates` `bookings_delete_block_dates` `bookings_reverse_to_lead` `bookings_sign` `bookings_set_primary_guest` `bookings_request_background_check` `bookings_set_background_check_approval` `bookings_set_lease_prepared`
+`bookings_list` `bookings_get` `bookings_create` `bookings_update` `bookings_delete` `bookings_check_availability` `bookings_block_dates` `bookings_update_block_dates` `bookings_delete_block_dates` `bookings_reverse_to_lead` `bookings_sign` `bookings_set_primary_guest` `bookings_request_background_check` `bookings_set_background_check_approval` `bookings_set_lease_prepared` `bookings_get_guest_workflow_status` `bookings_get_lease_payment_options` `bookings_get_external_calendar_status` `bookings_get_survey_reviews`
 
 ### Guests
 `guests_search` `guests_create` `guests_update` `guests_delete`
@@ -104,7 +104,7 @@ Two options:
 `tasks_list` `tasks_get` `tasks_get_by_entity` `tasks_get_by_vendor` `tasks_create` `tasks_update` `tasks_delete`
 
 ### Leads (CRM)
-`leads_list` `leads_create` `leads_update` `leads_update_stage` `leads_delete`
+`leads_list` `leads_create` `leads_update` `leads_update_stage` `leads_delete` `leads_get_external_reservation_candidates`
 
 ### Pipeline stages
 `pipeline_stages_list` `pipeline_stages_create` `pipeline_stages_update` `pipeline_stages_delete` `pipeline_stages_reorder`
@@ -113,13 +113,13 @@ Two options:
 `templates_list` `templates_get` `templates_get_by_entity` `templates_get_public` `templates_create` `templates_update` `templates_delete` `templates_generate_lease` `templates_preview_render` `templates_import_word`
 
 ### Conversations
-`conversations_list` `conversations_get` `conversations_get_by_entity` `conversations_create` `conversations_add_message` `conversations_send_message` `conversations_update` `conversations_mark_read` `conversations_mark_unread` `conversations_retry_message` `conversations_edit_message` `conversations_delete_message`
+`conversations_list` `conversations_get` `conversations_get_by_entity` `conversations_create` `conversations_add_message` `conversations_send_message` `conversations_update` `conversations_mark_read` `conversations_mark_unread` `conversations_retry_message` `conversations_edit_message` `conversations_delete_message` `conversations_scheduled_pending` `conversations_automated` `communication_templates_list`
 
 ### Message templates
 `message_templates_list` `message_templates_get` `message_templates_create` `message_templates_update` `message_templates_delete`
 
 ### Payments
-`payments_list` `payments_create` `payments_create_manual` `payments_mark_paid` `payments_check` `payments_capture` `payments_cancel` `payments_update` `payments_generate_link` `payments_send_reminder` `payments_recurring_list` `payments_recurring_create` `payments_recurring_cancel` `payments_recurring_reschedule`
+`payments_list` `payments_create` `payments_create_manual` `payments_mark_paid` `payments_check` `payments_capture` `payments_cancel` `payments_update` `payments_generate_link` `payments_send_reminder` `payments_recurring_list` `payments_recurring_create` `payments_recurring_cancel` `payments_recurring_reschedule` `payments_autopay_get` `payments_property_split_get` `ledger_entries_list`
 
 ### Stripe accounts
 `stripe_accounts_list` `stripe_accounts_create` `stripe_accounts_get_onboarding_link` `stripe_accounts_refresh_status` `stripe_accounts_get_dashboard` `stripe_accounts_get_references` `stripe_accounts_set_default` `stripe_accounts_update` `stripe_accounts_delete`
@@ -158,7 +158,21 @@ Two options:
 `entities_list` `entities_get`
 
 ### Users
-`whoami`
+`whoami` `users_my_memberships`
+
+### Screening
+`background_checks_list` `background_checks_get` `background_checks_options`
+
+### Documents
+`documents_list` `documents_list_for_guest`
+
+### Smart locks
+`smart_locks_devices_list` `smart_locks_booking_access_list` `smart_locks_device_activity`
+
+### Co-hosting
+`co_hosting_portfolio` `co_hosting_invitations_list` `co_hosting_property_bookings` `co_hosting_property_calendar`
+
+Read tools shape Core replies for assistants: integer cents come back as `<name>Cents` with `<name>Formatted`, epoch-millisecond timestamps as ISO strings, and door codes, document file links and tokenized guest/payment links are withheld (`<field>Withheld: true`).
 
 ## Development
 

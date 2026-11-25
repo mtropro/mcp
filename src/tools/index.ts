@@ -24,6 +24,15 @@ import { registerReportWidgetTools } from "./report-widgets.js";
 import { registerAdminUtilityTools } from "./admin.js";
 import { registerCampaignTools } from "./campaigns.js";
 import { registerImportJobTools } from "./import-jobs.js";
+import { registerBookingStatusTools } from "./booking-status.js";
+import { registerLeadInsightTools } from "./lead-insights.js";
+import { registerFinanceReadTools } from "./finance-reads.js";
+import { registerScreeningTools } from "./screening.js";
+import { registerDocumentTools } from "./documents.js";
+import { registerSmartLockTools } from "./smart-locks.js";
+import { registerMessagingReadTools } from "./messaging-reads.js";
+import { registerCoHostingTools } from "./co-hosting.js";
+import { registerMembershipTools } from "./memberships.js";
 
 export function registerAllTools(server: McpServer, client: ApiClient) {
   registerUserTools(server, client);
@@ -51,4 +60,13 @@ export function registerAllTools(server: McpServer, client: ApiClient) {
   registerAdminUtilityTools(server, client);
   registerCampaignTools(server, client);
   registerImportJobTools(server, client);
+  registerBookingStatusTools(server, client);
+  registerLeadInsightTools(server, client);
+  registerFinanceReadTools(server, client);
+  registerScreeningTools(server, client);
+  registerDocumentTools(server, client);
+  registerSmartLockTools(server, client);
+  registerMessagingReadTools(server, client);
+  registerCoHostingTools(server, client);
+  registerMembershipTools(server, client);
 }
