@@ -32,6 +32,7 @@ const TAG_TITLES = {
   "bookings.ts": "Bookings",
   "co-hosting.ts": "Co-hosting",
   "campaigns.ts": "Campaigns",
+  "scheduled-messages.ts": "Conversations",
   "conversations.ts": "Conversations",
   "documents.ts": "Documents",
   "entities.ts": "Entities",
@@ -440,6 +441,31 @@ function main() {
     }
 
     const openApiPath = toOpenApiPath(route.path);
+    // Scheduling tools resolve a preview and translate the owner's date into Core's wire format.
+    if (openApiPath === "/conversations/{conversationId}/scheduling-context") {
+      operation.operationId = "conversations_get_scheduling_context";
+      operation.summary = "Preview a Lead conversation for scheduling.";
+      operation.description = "Returns the current contact and property time zone. Include a scheduledMessageId to review one pending message in this conversation.";
+      const selection = parameters.find(parameter => parameter.name === "scheduledMessageId");
+      if (selection) selection.required = false;
+    }
+    if (openApiPath === "/conversations/schedule-message") {
+      operation.description = "Queue a message for later delivery. For a single Lead email or SMS, pass the reviewed confirmedRecipient, a future sendAt in milliseconds, fixed_delay and a scheduleFixed interval.";
+      const schema = operation.requestBody.content["application/json"].schema;
+      schema.properties = {
+        conversationId: { type: "string" }, channel: { type: "string", enum: ["in_app", "email", "sms", "whatsapp"] },
+        message: { type: "string" }, sendAt: { type: "integer", format: "int64", description: "Unix time in milliseconds." },
+        scheduleTimeZone: { type: "string" },
+        schedule: { type: "string", enum: ["fixed_delay", "after_booking_5m", "before_checkin_1d_10am", "before_checkout_1d_6pm", "custom"] },
+        scheduleFixed: { type: "object", properties: { amount: { type: "integer", minimum: 1, maximum: 10000 }, unit: { type: "string", enum: ["minute", "hour", "day", "week", "month"] } }, required: ["amount", "unit"] },
+        scheduleCustom: { type: "object" }, confirmedRecipient: { type: "string" }, channelOnly: { type: "boolean" }, clientMessageId: { type: "string" },
+      };
+      schema.required = ["conversationId", "schedule"];
+      operation.responses[201] = { ...operation.responses[200], description: "Message queued." };
+    }
+    if (openApiPath === "/conversations/scheduled/cancel") {
+      operation.requestBody.content["application/json"].schema.properties.expectedSendAt = { type: "integer", format: "int64", description: "Refuse cancellation if the saved delivery time has changed." };
+    }
     paths[openApiPath] = paths[openApiPath] || {};
     paths[openApiPath][method] = operation;
     report.operations += 1;
